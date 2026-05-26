@@ -1,0 +1,23 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+  background: #f7f8fc;
+  color: #111827;
+}
+
+main {
+  padding: 2rem;
+}
+
+section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: white;
+}
+
+h1, h2 {
+  margin: 0 0 0.5rem;
+}
