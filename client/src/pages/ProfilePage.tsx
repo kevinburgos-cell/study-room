@@ -1,21 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 interface ProfilePageProps {
   onLogout: () => void;
 }
 
+/**
+ * ProfilePage manages user details, bios, and weekly study hour goals,
+ * persisting edits directly into Cloud Firestore database via backend.
+ */
 export default function ProfilePage({ onLogout }: ProfilePageProps) {
-  const [username, setUsername] = useState('Kevin Burgos');
-  const [email, setEmail] = useState('kevin@ejemplo.com');
-  const [bio, setBio] = useState('Estudiante de Ingeniería de Software. Apasionado por la web y la inteligencia artificial.');
-  const [studyGoal, setStudyGoal] = useState('25'); // hours per week
+  const { user, updateUserProfile } = useAuth();
+  
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
+  const [studyGoal, setStudyGoal] = useState('10');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  // Sync state with active authenticated user context
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setBio(user.bio || '');
+      setStudyGoal(user.studyGoal || '10');
+    }
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    if (!name.trim()) {
+      setError('Por favor, ingresa tu nombre completo.');
+      return;
+    }
+
+    setError('');
+    setSubmitting(false);
+    setSubmitting(true);
+    try {
+      await updateUserProfile(name.trim(), bio.trim(), studyGoal);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar los datos en la base de datos.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -65,32 +97,43 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
         <header className="page-header" aria-label="Encabezado del perfil">
           <div>
             <h1 id="profile-title">Mi Perfil</h1>
-            <p className="page-title-desc">Administra tus datos personales y objetivos de estudio.</p>
+            <p className="page-title-desc">Administra tus datos personales y objetivos de estudio conectados a Firestore.</p>
           </div>
         </header>
 
         {savedSuccess && (
           <div className="alert-box alert-info" role="alert" aria-live="polite">
-            ✅ ¡Preferencias y perfil guardados exitosamente!
+            ✅ ¡Datos guardados exitosamente en la base de datos!
+          </div>
+        )}
+
+        {error && (
+          <div className="alert-box" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5' }} role="alert">
+            ❌ {error}
           </div>
         )}
 
         <section className="glass-panel" aria-labelledby="form-section-heading" style={{ padding: '2rem' }}>
-          <h2 id="form-section-heading" style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Información Personal</h2>
+          <h2 id="form-section-heading" style={{ marginBottom: '0.5rem', fontSize: '1.5rem' }}>Información Personal</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+            Nombre de usuario único registrado: <strong style={{ color: '#ffffff' }}>@{user?.username}</strong>
+          </p>
           
           <form onSubmit={handleSave} noValidate>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div className="form-group">
-                <label className="form-label" htmlFor="username-input">
-                  Nombre de Usuario
+                <label className="form-label" htmlFor="name-input">
+                  Nombre Completo
                 </label>
                 <input
-                  id="username-input"
+                  id="name-input"
                   type="text"
                   className="form-input interactive-element"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  aria-label="Nombre de usuario"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={submitting}
+                  aria-label="Nombre completo del estudiante"
+                  aria-required="true"
                 />
               </div>
 
@@ -102,9 +145,10 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
                   id="profile-email-input"
                   type="email"
                   className="form-input interactive-element"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  aria-label="Correo electrónico de perfil"
+                  value={user?.email || ''}
+                  disabled={true}
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                  aria-label="Correo electrónico (no modificable)"
                 />
               </div>
             </div>
@@ -119,6 +163,7 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
                 style={{ resize: 'vertical', minHeight: '100px', fontFamily: 'inherit' }}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
+                disabled={submitting}
                 aria-label="Escribe una breve biografía sobre ti"
               />
             </div>
@@ -135,6 +180,7 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
                 className="form-input interactive-element"
                 value={studyGoal}
                 onChange={(e) => setStudyGoal(e.target.value)}
+                disabled={submitting}
                 aria-label="Meta de horas semanales de estudio"
               />
             </div>
@@ -144,9 +190,10 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
                 type="submit"
                 className="btn-primary interactive-element"
                 style={{ width: 'auto', minWidth: '180px' }}
-                aria-label="Guardar cambios del perfil"
+                disabled={submitting}
+                aria-label="Guardar cambios del perfil en base de datos"
               >
-                Guardar Cambios
+                {submitting ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </form>

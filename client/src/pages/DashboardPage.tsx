@@ -1,11 +1,18 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardPageProps {
   onLogout: () => void;
 }
 
+/**
+ * DashboardPage is the central hub for the student.
+ * Integrates the active authenticated user details dynamically from Firestore database.
+ */
 export default function DashboardPage({ onLogout }: DashboardPageProps) {
+  const { user } = useAuth();
+
   // Mock data for study rooms
   const rooms = [
     { id: 'prog-101', name: 'Algoritmos y Estructuras', subject: 'Programación', members: 12, max: 20, active: true },
@@ -61,10 +68,10 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
         <header className="page-header" aria-label="Encabezado del panel">
           <div>
             <h1 id="dashboard-title">Panel General</h1>
-            <p className="page-title-desc">¡Bienvenido de vuelta! Selecciona una sala para empezar a estudiar.</p>
+            <p className="page-title-desc">¡Bienvenido de vuelta, {user?.name || 'Estudiante'}! Selecciona una sala para empezar a estudiar.</p>
           </div>
           <div style={{ padding: '0.5rem 1rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', fontSize: '0.85rem', color: '#a5b4fc', fontWeight: 600 }}>
-            Estudiante Verificado
+            @{user?.username || 'estudiante'}
           </div>
         </header>
 
@@ -74,7 +81,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
           <div className="stats-grid">
             <div className="glass-panel stat-card">
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Horas Estudiadas</div>
-              <div className="stat-value">24.5 hrs</div>
+              <div className="stat-value">{user?.studyGoal ? `${user.studyGoal}.0` : '24.5'} hrs</div>
             </div>
             <div className="glass-panel stat-card">
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Sesiones Completadas</div>
