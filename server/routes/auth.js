@@ -120,24 +120,14 @@ router.post('/check-username', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - username
- *               - name
- *               - email
- *               - password
- *             properties:
- *               username:
- *                 type: string
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
+ *             $ref: '#/components/schemas/RegisterRequest'
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente y persistido en Firestore
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
  *       400:
  *         description: Conflicto o campos inválidos (ej. username duplicado)
  */
@@ -235,26 +225,14 @@ router.post('/register', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - idToken
- *             properties:
- *               idToken:
- *                 type: string
- *                 description: Firebase ID Token obtenido del cliente de Google Auth
+ *             $ref: '#/components/schemas/GoogleLoginRequest'
  *     responses:
  *       200:
  *         description: Login exitoso, o indica que se requiere configurar nombre de usuario (onboarding)
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: OK
- *                 user:
- *                   type: object
+ *               $ref: '#/components/schemas/GoogleLoginResponse'
  */
 router.post('/google-login', async (req, res) => {
   try {
@@ -327,18 +305,14 @@ router.post('/google-login', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - idToken
- *               - username
- *             properties:
- *               idToken:
- *                 type: string
- *               username:
- *                 type: string
+ *             $ref: '#/components/schemas/GoogleOnboardRequest'
  *     responses:
  *       200:
  *         description: Registro de Google completado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GoogleLoginResponse'
  *       400:
  *         description: Username duplicado o token inválido
  */
@@ -424,6 +398,13 @@ router.post('/google-onboard', async (req, res) => {
  *     responses:
  *       200:
  *         description: Datos completos del perfil del usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
  *       401:
  *         description: No autorizado
  */
@@ -486,17 +467,19 @@ router.get('/me', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               bio:
- *                 type: string
- *               studyGoal:
- *                 type: string
+ *             $ref: '#/components/schemas/ProfileUpdateRequest'
  *     responses:
  *       200:
  *         description: Perfil actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
  */
 router.post('/profile/update', async (req, res) => {
   try {
