@@ -1,10 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import GoogleOnboardingPage from './pages/GoogleOnboardingPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
 import RoomPage from './pages/RoomPage';
@@ -14,48 +13,43 @@ import RoomPage from './pages/RoomPage';
  * Utilizes useAuth context to hook up authentication events and routes.
  */
 function AppContent() {
-  const { logout } = useAuth();
+  const { signOut, user } = useAuth();
 
   return (
     <Routes>
-      {/* Home redirects to Login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
 
-      {/* Public auth routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/google-onboard" element={<GoogleOnboardingPage />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
 
-      {/* Protected study workspace routes */}
-      <Route 
-        path="/dashboard" 
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage onLogout={logout} />
+            <DashboardPage onLogout={signOut} />
           </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/profile" 
-        element={
-          <ProtectedRoute>
-            <ProfilePage onLogout={logout} />
-          </ProtectedRoute>
-        } 
+        }
       />
 
-      <Route 
-        path="/rooms/:id" 
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage onLogout={signOut} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/rooms/:id"
         element={
           <ProtectedRoute>
             <RoomPage />
           </ProtectedRoute>
-        } 
+        }
       />
 
-      {/* Fallback route */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
     </Routes>
   );
 }

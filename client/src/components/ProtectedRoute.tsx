@@ -1,37 +1,18 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-/**
- * ProtectedRoute component restricts route access to authenticated users.
- * If the user is unauthenticated, they are redirected to /login.
- * Displays a professional full-screen loading state during verification.
- */
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading } = useAuth();
-  
   if (loading) {
-    return (
-      <main 
-        className="auth-container" 
-        style={{ flexDirection: 'column', gap: '1rem', color: 'var(--text-secondary)' }}
-        aria-label="Verificando credenciales de acceso"
-      >
-        <div className="spinner"></div>
-        <p style={{ fontWeight: 600, animation: 'pulse 1.5s infinite' }}>
-          Verificando sesión segura...
-        </p>
-      </main>
-    );
+    return <main style={{ padding: 24 }}>Verificando sesión...</main>;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
-  
+
   return <>{children}</>;
 }

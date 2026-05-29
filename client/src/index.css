@@ -16,6 +16,11 @@
   --color-danger: #ef4444;
   --font-title: 'Outfit', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
+  --space-page: clamp(1rem, 2vw, 2.5rem);
+  --space-card: clamp(1rem, 2vw, 1.75rem);
+  --radius-lg: clamp(14px, 1.5vw, 20px);
+  --radius-md: clamp(10px, 1.2vw, 14px);
+  --content-max: 1200px;
 }
 
 * {
@@ -27,6 +32,7 @@
 body {
   margin: 0;
   font-family: var(--font-body);
+  font-size: clamp(15px, 0.35vw + 14px, 18px);
   background-color: var(--bg-main);
   background-image: 
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
@@ -63,6 +69,18 @@ h1, h2, h3, h4 {
   letter-spacing: -0.02em;
 }
 
+h1 {
+  font-size: clamp(1.8rem, 3vw, 3rem);
+}
+
+h2 {
+  font-size: clamp(1.35rem, 2.2vw, 2rem);
+}
+
+h3 {
+  font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+}
+
 a {
   color: var(--color-primary);
   text-decoration: none;
@@ -79,7 +97,7 @@ a:hover {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -105,13 +123,13 @@ a:hover {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 1.5rem;
+  padding: var(--space-page);
 }
 
 .auth-card {
   width: 100%;
   max-width: 440px;
-  padding: 2.5rem;
+  padding: var(--space-card);
 }
 
 .form-group {
@@ -128,6 +146,7 @@ a:hover {
 
 .form-input {
   width: 100%;
+  min-width: 0;
   padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
@@ -154,7 +173,7 @@ a:hover {
   padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, var(--color-primary), #4f46e5);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: white;
   font-weight: 600;
   cursor: pointer;
@@ -181,7 +200,7 @@ a:hover {
   padding: 0.75rem 1.5rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-weight: 600;
   cursor: pointer;
@@ -205,15 +224,32 @@ a:hover {
   .dashboard-layout {
     grid-template-columns: 1fr;
   }
+
+  .sidebar {
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    gap: 1.5rem;
+  }
+
+  .nav-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-link {
+    width: 100%;
+  }
 }
 
 .sidebar {
   background: rgba(10, 12, 26, 0.9);
   border-right: 1px solid var(--border-color);
-  padding: 2rem 1.5rem;
+  padding: clamp(1.25rem, 2vw, 2rem) clamp(1rem, 1.5vw, 1.5rem);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 2rem;
 }
 
 .logo-container {
@@ -265,14 +301,15 @@ a:hover {
 
 /* Main Panel */
 .main-content {
-  padding: 2.5rem;
+  padding: var(--space-page);
   overflow-y: auto;
-  max-height: 100vh;
+  max-height: none;
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
   .main-content {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 }
 
@@ -280,6 +317,8 @@ a:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
 }
 
@@ -292,13 +331,13 @@ a:hover {
 /* Stats / Cards */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
   margin-bottom: 2rem;
 }
 
 .stat-card {
-  padding: 1.5rem;
+  padding: var(--space-card);
 }
 
 .stat-value {
@@ -311,16 +350,16 @@ a:hover {
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
 }
 
 .room-card {
-  padding: 1.5rem;
+  padding: var(--space-card);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 200px;
+  min-height: 200px;
 }
 
 .room-card:hover {
@@ -350,7 +389,7 @@ a:hover {
 .workspace-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
+  gap: clamp(1rem, 2vw, 1.5rem);
 }
 
 @media (max-width: 1024px) {
@@ -365,15 +404,15 @@ a:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
   text-align: center;
   margin-bottom: 1.5rem;
 }
 
 .timer-circle {
   position: relative;
-  width: 220px;
-  height: 220px;
+  width: min(60vw, 220px);
+  aspect-ratio: 1;
   border-radius: 50%;
   border: 4px solid rgba(255, 255, 255, 0.05);
   display: flex;
@@ -400,7 +439,7 @@ a:hover {
 }
 
 .timer-display {
-  font-size: 3.2rem;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
   font-family: var(--font-title);
   font-weight: 800;
   letter-spacing: -0.01em;
@@ -416,7 +455,7 @@ a:hover {
 
 /* Chat Section */
 .chat-container {
-  height: 400px;
+  min-height: 400px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -909,6 +948,68 @@ a:hover {
   color: #111827;
 }
 
+@media (max-width: 900px) {
+  .split-layout {
+    flex-direction: column;
+  }
+
+  .info-panel {
+    display: none !important;
+  }
+
+  .form-panel {
+    width: 100% !important;
+    padding: clamp(1.5rem, 4vw, 2.5rem) 1.25rem !important;
+  }
+
+  .form-card-wrapper {
+    max-width: min(100%, 520px);
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timer-controls,
+  .chat-input-wrapper {
+    flex-direction: column;
+  }
+
+  .timer-controls button,
+  .chat-input-wrapper button {
+    width: 100% !important;
+  }
+
+  .page-header {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .toggle-tab-container {
+    flex-direction: column;
+    border-radius: 16px;
+  }
+
+  .toggle-tab {
+    width: 100%;
+  }
+
+  .form-panel {
+    align-items: flex-start;
+  }
+
+  .form-card-wrapper {
+    max-width: 100%;
+  }
+
+  .user-pill {
+    align-items: flex-start;
+  }
+}
+
 /* User pill for Google Onboarding */
 .user-pill {
   display: flex;
@@ -957,4 +1058,3 @@ a:hover {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
-

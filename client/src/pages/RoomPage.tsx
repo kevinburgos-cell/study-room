@@ -14,7 +14,7 @@ export default function RoomPage() {
   // Timer States (Pomodoro 25 min default = 1500 seconds)
   const [secondsLeft, setSecondsLeft] = useState(1500);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Chat States
   const [messages, setMessages] = useState<Message[]>([
