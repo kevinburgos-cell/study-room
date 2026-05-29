@@ -43,6 +43,7 @@ async function emailExists(email) {
  * @swagger
  * /api/auth/check-username:
  *   post:
+ *     description: Valida si un nombre de usuario ya existe antes de registrar o completar onboarding.
  *     summary: Verifica la disponibilidad de un nombre de usuario
  *     tags: [Autenticación]
  *     requestBody:
@@ -59,7 +60,7 @@ async function emailExists(email) {
  *                 description: Nombre de usuario a comprobar
  *     responses:
  *       200:
- *         description: Disponibilidad del username
+ *         description: Nombre de usuario disponible o en uso
  *         content:
  *           application/json:
  *             schema:
@@ -69,8 +70,28 @@ async function emailExists(email) {
  *                   type: boolean
  *                 message:
  *                   type: string
+ *             examples:
+ *               disponible:
+ *                 value:
+ *                   available: true
+ *                   message: Nombre de usuario disponible.
+ *               en_uso:
+ *                 value:
+ *                   available: false
+ *                   message: Este nombre de usuario ya está en uso.
  *       400:
  *         description: Datos de entrada inválidos
+ *         content:
+ *           application/json:
+ *             example:
+ *               available: false
+ *               message: El nombre de usuario debe tener al menos 3 caracteres.
+ *       500:
+ *         description: Error del servidor al validar nombre de usuario
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error del servidor al validar nombre de usuario.
  */
 router.post('/check-username', async (req, res) => {
   try {
@@ -113,6 +134,7 @@ router.post('/check-username', async (req, res) => {
  * @swagger
  * /api/auth/register:
  *   post:
+ *     description: Registra un usuario manualmente con email y contraseña, guardándolo en Firestore.
  *     summary: Registra un usuario de forma manual (Email/Contraseña)
  *     tags: [Autenticación]
  *     requestBody:
@@ -120,16 +142,67 @@ router.post('/check-username', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RegisterRequest'
+ *             type: object
+ *             required: [username, name, email, password]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: kevinburgos
+ *               name:
+ *                 type: string
+ *                 example: Kevin Burgos
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: kevin@ejemplo.com
+ *               password:
+ *                 type: string
+ *                 example: '123456'
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente y persistido en Firestore
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               message: Registro exitoso.
+ *               user:
+ *                 uid: abc123uid
+ *                 email: kevin@ejemplo.com
+ *                 username: kevinburgos
+ *                 photoURL: null
+ *                 createdAt: '2026-05-29T12:08:29.000Z'
  *       400:
  *         description: Conflicto o campos inválidos (ej. username duplicado)
+ *         content:
+ *           application/json:
+ *             examples:
+ *               campos_faltantes:
+ *                 value:
+ *                   error: Por favor, completa todos los campos.
+ *               password_corta:
+ *                 value:
+ *                   error: La contraseña debe tener al menos 6 caracteres.
+ *               username_duplicado:
+ *                 value:
+ *                   error: El nombre de usuario ya está tomado.
+ *                   code: USERNAME_DUPLICATED
+ *               email_duplicado:
+ *                 value:
+ *                   error: El correo electrónico ya está registrado.
+ *                   code: EMAIL_DUPLICATED
+ *       500:
+ *         description: Error del servidor al registrar usuario
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error del servidor al registrar usuario.
  */
 router.post('/register', async (req, res) => {
   try {
@@ -218,6 +291,7 @@ router.post('/register', async (req, res) => {
  * @swagger
  * /api/auth/google-login:
  *   post:
+ *     description: Inicia sesión con Google o devuelve que falta completar el onboarding.
  *     summary: Inicia sesión o sincroniza una cuenta de Google Auth
  *     tags: [Autenticación]
  *     requestBody:
@@ -225,14 +299,64 @@ router.post('/register', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/GoogleLoginRequest'
+ *             type: object
+ *             required: [idToken]
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 example: eyJhbGciOiJSUzI1NiIsImtpZCI6...
  *     responses:
  *       200:
  *         description: Login exitoso, o indica que se requiere configurar nombre de usuario (onboarding)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/GoogleLoginResponse'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 tempUser:
+ *                   type: object
+ *             examples:
+ *               ok:
+ *                 value:
+ *                   status: OK
+ *                   user:
+ *                     uid: google_uid_123
+ *                     email: kevin@ejemplo.com
+ *                     username: kevinburgos
+ *                     photoURL: null
+ *                     createdAt: '2026-05-29T12:08:29.000Z'
+ *               onboarding:
+ *                 value:
+ *                   status: ONBOARDING_REQUIRED
+ *                   message: Se requiere configurar un nombre de usuario.
+ *                   tempUser:
+ *                     uid: google_uid_123
+ *                     email: kevin@ejemplo.com
+ *                     name: Kevin
+ *       400:
+ *         description: Falta el token de Google
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: ID Token es requerido.
+ *       401:
+ *         description: Token de autenticación inválido
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Token de autenticación de Google inválido.
+ *       500:
+ *         description: Error del servidor al verificar Google login
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error del servidor al verificar Google login.
  */
 router.post('/google-login', async (req, res) => {
   try {
@@ -298,6 +422,7 @@ router.post('/google-login', async (req, res) => {
  * @swagger
  * /api/auth/google-onboard:
  *   post:
+ *     description: Completa el registro iniciado con Google creando el documento de usuario en Firestore.
  *     summary: Completa el registro de Google asignando un nombre de usuario único
  *     tags: [Autenticación]
  *     requestBody:
@@ -305,16 +430,58 @@ router.post('/google-login', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/GoogleOnboardRequest'
+ *             type: object
+ *             required: [idToken, username]
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 example: eyJhbGciOiJSUzI1NiIsImtpZCI6...
+ *               username:
+ *                 type: string
+ *                 example: kevinburgos
  *     responses:
  *       200:
  *         description: Registro de Google completado exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/GoogleLoginResponse'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               status: OK
+ *               user:
+ *                 uid: google_uid_123
+ *                 email: kevin@ejemplo.com
+ *                 username: kevinburgos
+ *                 photoURL: null
+ *                 createdAt: '2026-05-29T12:08:29.000Z'
  *       400:
  *         description: Username duplicado o token inválido
+ *         content:
+ *           application/json:
+ *             examples:
+ *               faltan_datos:
+ *                 value:
+ *                   error: Token y nombre de usuario son requeridos.
+ *               username_tomado:
+ *                 value:
+ *                   error: El nombre de usuario ya está tomado.
+ *       401:
+ *         description: Error al completar onboarding con Google
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error al completar el onboarding con Google.
+ *       500:
+ *         description: Error interno al completar onboarding con Google
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error al completar el onboarding con Google.
  */
 router.post('/google-onboard', async (req, res) => {
   try {
@@ -391,6 +558,7 @@ router.post('/google-onboard', async (req, res) => {
  * @swagger
  * /api/auth/me:
  *   get:
+ *     description: Obtiene el perfil del usuario autenticado usando Bearer token.
  *     summary: Obtiene el perfil del usuario autenticado actual
  *     tags: [Autenticación]
  *     security:
@@ -405,8 +573,36 @@ router.post('/google-onboard', async (req, res) => {
  *               properties:
  *                 user:
  *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               user:
+ *                 uid: abc123uid
+ *                 email: kevin@ejemplo.com
+ *                 username: kevinburgos
+ *                 photoURL: null
+ *                 createdAt: '2026-05-29T12:08:29.000Z'
  *       401:
  *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             examples:
+ *               sin_token:
+ *                 value:
+ *                   error: No autorizado. Formato Bearer Token requerido.
+ *               token_invalido:
+ *                 value:
+ *                   error: Token de autenticación expirado o inválido.
+ *       404:
+ *         description: Usuario no encontrado en la base de datos
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Usuario no encontrado en la base de datos.
+ *       500:
+ *         description: Error al obtener el perfil
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error del servidor al obtener perfil.
  */
 router.get('/me', async (req, res) => {
   try {
@@ -458,6 +654,7 @@ router.get('/me', async (req, res) => {
  * @swagger
  * /api/auth/profile/update:
  *   post:
+ *     description: Actualiza campos del perfil del usuario autenticado.
  *     summary: Actualiza el perfil del usuario en Firestore
  *     tags: [Autenticación]
  *     security:
@@ -467,7 +664,17 @@ router.get('/me', async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ProfileUpdateRequest'
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Kevin Burgos
+ *               bio:
+ *                 type: string
+ *                 example: Estudiante de Ingeniería de Software.
+ *               studyGoal:
+ *                 type: string
+ *                 example: '15'
  *     responses:
  *       200:
  *         description: Perfil actualizado exitosamente
@@ -480,6 +687,37 @@ router.get('/me', async (req, res) => {
  *                   type: boolean
  *                 user:
  *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               success: true
+ *               user:
+ *                 uid: abc123uid
+ *                 email: kevin@ejemplo.com
+ *                 username: kevinburgos
+ *                 photoURL: null
+ *                 createdAt: '2026-05-29T12:08:29.000Z'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             examples:
+ *               sin_token:
+ *                 value:
+ *                   error: No autorizado.
+ *               token_invalido:
+ *                 value:
+ *                   error: Error del servidor al actualizar perfil.
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Usuario no encontrado.
+ *       500:
+ *         description: Error del servidor al actualizar perfil
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error del servidor al actualizar perfil.
  */
 router.post('/profile/update', async (req, res) => {
   try {

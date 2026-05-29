@@ -49,82 +49,14 @@ const swaggerOptions = {
       schemas: {
         User: {
           type: 'object',
+          description: 'Modelo de usuario almacenado en Firestore.',
+          required: ['uid', 'email', 'username', 'photoURL', 'createdAt'],
           properties: {
             uid: { type: 'string', example: 'abc123uid' },
-            username: { type: 'string', example: 'kevinburgos' },
-            username_lowercase: { type: 'string', example: 'kevinburgos' },
-            name: { type: 'string', example: 'Kevin Burgos' },
             email: { type: 'string', format: 'email', example: 'kevin@ejemplo.com' },
-            bio: { type: 'string', example: '¡Hola! Soy nuevo estudiante en StudyRoom.' },
-            studyGoal: { type: 'string', example: '10' },
+            username: { type: 'string', example: 'kevinburgos' },
+            photoURL: { type: 'string', nullable: true, example: 'https://lh3.googleusercontent.com/a/ACg...' },
             createdAt: { type: 'string', format: 'date-time', example: '2026-05-29T12:08:29.000Z' },
-          },
-        },
-        RegisterRequest: {
-          type: 'object',
-          required: ['username', 'name', 'email', 'password'],
-          properties: {
-            username: { type: 'string', example: 'kevinburgos' },
-            name: { type: 'string', example: 'Kevin Burgos' },
-            email: { type: 'string', format: 'email', example: 'kevin@ejemplo.com' },
-            password: { type: 'string', example: '123456' },
-          },
-        },
-        LoginRequest: {
-          type: 'object',
-          required: ['email', 'password'],
-          properties: {
-            email: { type: 'string', format: 'email', example: 'kevin@ejemplo.com' },
-            password: { type: 'string', example: '123456' },
-          },
-        },
-        GoogleLoginRequest: {
-          type: 'object',
-          required: ['idToken'],
-          properties: {
-            idToken: {
-              type: 'string',
-              description: 'Firebase ID Token obtenido del cliente',
-              example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...',
-            },
-          },
-        },
-        GoogleOnboardRequest: {
-          type: 'object',
-          required: ['idToken', 'username'],
-          properties: {
-            idToken: { type: 'string', example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...' },
-            username: { type: 'string', example: 'kevinburgos' },
-          },
-        },
-        ProfileUpdateRequest: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', example: 'Kevin Burgos' },
-            bio: { type: 'string', example: 'Estudiante de Ingeniería de Software.' },
-            studyGoal: { type: 'string', example: '15' },
-          },
-        },
-        AuthResponse: {
-          type: 'object',
-          properties: {
-            message: { type: 'string', example: 'Registro exitoso.' },
-            user: { $ref: '#/components/schemas/User' },
-          },
-        },
-        GoogleLoginResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'OK' },
-            user: { $ref: '#/components/schemas/User' },
-            tempUser: {
-              type: 'object',
-              properties: {
-                uid: { type: 'string', example: 'google_uid_123' },
-                email: { type: 'string', format: 'email', example: 'kevin@ejemplo.com' },
-                name: { type: 'string', example: 'Kevin' },
-              },
-            },
           },
         },
       },
