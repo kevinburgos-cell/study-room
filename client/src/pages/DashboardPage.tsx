@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 interface DashboardPageProps {
@@ -12,6 +12,18 @@ interface DashboardPageProps {
  */
 export default function DashboardPage({ onLogout }: DashboardPageProps) {
   const { user } = useAuth();
+  const location = useLocation();
+  const state = location.state as { successMessage?: string } | null;
+  const [successMessage, setSuccessMessage] = useState(state?.successMessage || '');
+
+  useEffect(() => {
+    if (!state?.successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setSuccessMessage(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [state?.successMessage]);
 
   // Mock data for study rooms
   const rooms = [
@@ -74,6 +86,22 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
             @{user?.username || 'estudiante'}
           </div>
         </header>
+
+        {successMessage && (
+          <div
+            className="alert-box alert-info"
+            role="alert"
+            aria-live="polite"
+            style={{
+              marginBottom: '1.5rem',
+              background: 'rgba(34, 197, 94, 0.12)',
+              border: '1px solid rgba(34, 197, 94, 0.25)',
+              color: '#86efac',
+            }}
+          >
+            ✅ {successMessage}
+          </div>
+        )}
 
         {/* Quick Stats section */}
         <section aria-labelledby="stats-heading" style={{ border: 'none', background: 'none', padding: 0 }}>

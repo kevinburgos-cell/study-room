@@ -98,7 +98,10 @@ export default function RegisterPage() {
         await register(username, email, password);
       }
 
-      navigate('/dashboard', { replace: true });
+      navigate('/dashboard', {
+        replace: true,
+        state: { successMessage: 'Registro exitoso. Ya puedes empezar a estudiar.' },
+      });
     } catch (err: any) {
       setLocalError(mapFirebaseError(err));
     } finally {
@@ -121,7 +124,10 @@ export default function RegisterPage() {
         });
         return;
       }
-      navigate('/dashboard', { replace: true });
+      navigate('/dashboard', {
+        replace: true,
+        state: { successMessage: 'Registro exitoso con Google.' },
+      });
     } catch (err: any) {
       setLocalError(mapFirebaseError(err));
     } finally {

@@ -32,7 +32,10 @@ export default function LoginPage() {
     try {
       setSubmitting(true);
       await login(email, password);
-      navigate('/dashboard', { replace: true });
+      navigate('/dashboard', {
+        replace: true,
+        state: { successMessage: 'Inicio de sesión exitoso.' },
+      });
     } catch (err: any) {
       setLocalError(mapFirebaseError(err));
     } finally {
@@ -55,7 +58,10 @@ export default function LoginPage() {
         });
         return;
       }
-      navigate('/dashboard', { replace: true });
+      navigate('/dashboard', {
+        replace: true,
+        state: { successMessage: 'Inicio de sesión exitoso con Google.' },
+      });
     } catch (err: any) {
       setLocalError(mapFirebaseError(err));
     } finally {

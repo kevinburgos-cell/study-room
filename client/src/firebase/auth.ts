@@ -34,11 +34,11 @@ export function mapFirebaseError(error: any): string {
   switch (error?.code) {
     case 'auth/email-already-in-use':
       return 'Email ya en uso';
+    case 'auth/invalid-email':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return 'Contraseña incorrecta';
     case 'auth/user-not-found':
-      return 'Usuario no encontrado';
+      return 'Credenciales incorrectas';
     case 'auth/weak-password':
       return 'La contraseña debe tener al menos 6 caracteres';
     case 'auth/popup-closed-by-user':
