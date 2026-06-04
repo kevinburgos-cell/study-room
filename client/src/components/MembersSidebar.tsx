@@ -5,9 +5,10 @@ interface MembersSidebarProps {
   members: RoomMember[];
   hostUid: string;
   currentUserUid: string;
+  isConnecting?: boolean;
 }
 
-export default function MembersSidebar({ members, hostUid, currentUserUid }: MembersSidebarProps) {
+export default function MembersSidebar({ members, hostUid, currentUserUid, isConnecting }: MembersSidebarProps) {
   const getInitials = (username: string) => {
     return username ? username.substring(0, 2).toUpperCase() : '??';
   };
@@ -33,6 +34,12 @@ export default function MembersSidebar({ members, hostUid, currentUserUid }: Mem
           {members.length}
         </span>
       </h2>
+
+      {isConnecting && (
+        <div className="skeleton-pulse" style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'rgba(59, 130, 246, 0.08)', padding: '0.5rem', borderRadius: '6px' }}>
+          <span className="spinner-indicator">⏳</span> Conectando...
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {members.map((member) => {

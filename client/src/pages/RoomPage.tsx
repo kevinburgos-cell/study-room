@@ -9,6 +9,10 @@ import MembersSidebar from '../components/MembersSidebar';
 import EditRoomModal from '../components/modals/EditRoomModal';
 import Toast from '../components/Toast';
 
+// Sockets hooks imports
+import { useSocket } from '../hooks/useSocket';
+import { useRoomUsers } from '../hooks/useRoomUsers';
+
 export default function RoomPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -24,6 +28,7 @@ export default function RoomPage() {
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Firestore subscription to check authorization and get host info
   useEffect(() => {
     if (!id || !user) return;
 
@@ -62,6 +67,28 @@ export default function RoomPage() {
 
     return () => unsubscribe();
   }, [id, user, navigate]);
+
+  // Connect to the WebSockets realtime server for this room
+  const { isConnected, isConnecting, showReconnectingBanner, showConnectedSuccess } = useSocket(id);
+
+  // Get active online users in real-time and bind events for notifications
+  const onlineUsers = useRoomUsers({
+    onUserJoined: (username) => {
+      setToast({ message: `¡${username} se unió a la sala!`, type: 'success' });
+    },
+    onUserLeft: (username) => {
+      setToast({ message: `${username} salió de la sala.`, type: 'success' });
+    },
+    onError: (errorMessage) => {
+      setToast({ message: `Error en tiempo real: ${errorMessage}`, type: 'error' });
+      // If the authentication token was invalid, force redirect to login
+      if (errorMessage.toLowerCase().includes('token')) {
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      }
+    }
+  });
 
   const handleExitClick = () => {
     if (!room || !user) return;
@@ -104,6 +131,21 @@ export default function RoomPage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
+      
+      {/* Realtime Reconnecting Banner */}
+      {showReconnectingBanner && (
+        <div style={{ backgroundColor: 'var(--color-warning)', color: '#000000', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600, zIndex: 100 }}>
+          ⚠️ Conexión perdida. Intentando reconectar al servidor en tiempo real...
+        </div>
+      )}
+
+      {/* Realtime Reconnect Success Banner */}
+      {showConnectedSuccess && (
+        <div style={{ backgroundColor: 'var(--color-success)', color: '#ffffff', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600, zIndex: 100 }}>
+          ✅ Conexión restablecida con éxito.
+        </div>
+      )}
+
       {/* Header Navigation Navbar */}
       <nav className="room-topbar" style={{ borderRadius: 0 }} aria-label="Menú superior de la sala">
         <div className="room-topbar-inner">
@@ -120,8 +162,22 @@ export default function RoomPage() {
             <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 700 }}>
               {room.name}
             </h1>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-              👥 {room.members.length}
+            <span 
+              style={{ 
+                fontSize: '0.85rem', 
+                color: isConnected ? '#86efac' : 'var(--text-secondary)', 
+                backgroundColor: 'var(--bg-surface)', 
+                padding: '0.2rem 0.5rem', 
+                borderRadius: '4px', 
+                border: isConnected ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--border-color)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}
+              title={isConnected ? 'Servidor en tiempo real conectado' : 'Desconectado'}
+            >
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isConnected ? 'var(--color-success)' : 'var(--color-danger)' }} />
+              En línea: {onlineUsers.length}
             </span>
           </div>
 
@@ -143,11 +199,12 @@ export default function RoomPage() {
       {/* Main Layout containing Sidebar and Work Area */}
       <div style={{ display: 'flex', flexGrow: 1, height: 'calc(100vh - 73px)', overflow: 'hidden' }}>
         
-        {/* Left Sidebar of Members */}
+        {/* Left Sidebar of Members (connected in real-time) */}
         <MembersSidebar
-          members={room.members}
+          members={onlineUsers}
           hostUid={room.hostUid}
           currentUserUid={user?.uid || ''}
+          isConnecting={isConnecting}
         />
 
         {/* Workspace Areas */}
