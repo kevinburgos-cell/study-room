@@ -3,6 +3,7 @@ client/node_modules/
 server/node_modules/
 .env
 .env.local
+firebase-service-account.json
 client/dist/
 server/dist/
 dist/
