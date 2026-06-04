@@ -1,198 +1,293 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-
-interface Message {
-  id: number;
-  author: string;
-  text: string;
-  self: boolean;
-}
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { useAuth } from '../contexts/AuthContext';
+import { leaveRoom } from '../hooks/useRooms';
+import { Room } from '../types/room.types';
+import MembersSidebar from '../components/MembersSidebar';
+import EditRoomModal from '../components/modals/EditRoomModal';
+import Toast from '../components/Toast';
 
 export default function RoomPage() {
   const { id } = useParams<{ id: string }>();
-  
-  // Timer States (Pomodoro 25 min default = 1500 seconds)
-  const [secondsLeft, setSecondsLeft] = useState(1500);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // Chat States
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, author: 'Sofía', text: '¡Hola a todos! Listos para estudiar hoy.', self: false },
-    { id: 2, author: 'Carlos', text: 'Sí, yo repasaré algoritmos de ordenamiento.', self: false }
-  ]);
-  const [inputText, setInputText] = useState('');
-  
-  // Notes State
-  const [notes, setNotes] = useState('Escribe tus apuntes de estudio aquí...');
+  const [room, setRoom] = useState<Room | null>(null);
+  const [loadingRoom, setLoadingRoom] = useState(true);
 
-  // Effect to handle Pomodoro countdown timer
+  // Modal and dialog states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   useEffect(() => {
-    if (isTimerRunning) {
-      timerIntervalRef.current = setInterval(() => {
-        setSecondsLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerIntervalRef.current!);
-            setIsTimerRunning(false);
-            alert('¡Tiempo cumplido! Toma un descanso de 5 minutos.');
-            return 1500;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (!id || !user) return;
+
+    setLoadingRoom(true);
+    const roomRef = doc(db, 'rooms', id);
+
+    const unsubscribe = onSnapshot(
+      roomRef,
+      (docSnap) => {
+        if (!docSnap.exists()) {
+          console.error('Room does not exist');
+          navigate('/dashboard', { state: { successMessage: 'La sala ya no existe o fue eliminada.' } });
+          return;
+        }
+
+        const roomData = { id: docSnap.id, ...docSnap.data() } as Room;
+        
+        // Security Check: Verify user membership or host
+        const isHost = roomData.hostUid === user.uid;
+        const isMember = roomData.members.some((m) => m.uid === user.uid);
+
+        if (!isHost && !isMember) {
+          console.error('Security Check: User is not a member of this room');
+          navigate('/dashboard');
+          return;
+        }
+
+        setRoom(roomData);
+        setLoadingRoom(false);
+      },
+      (err) => {
+        console.error('Error fetching room detail:', err);
+        navigate('/dashboard');
+      }
+    );
+
+    return () => unsubscribe();
+  }, [id, user, navigate]);
+
+  const handleExitClick = () => {
+    if (!room || !user) return;
+
+    if (room.hostUid === user.uid) {
+      // Host just navigates back
+      navigate('/dashboard');
     } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
+      // Guest gets a leaving confirmation modal
+      setIsLeaveConfirmOpen(true);
     }
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-    };
-  }, [isTimerRunning]);
-
-  // Format seconds to MM:SS
-  const formatTime = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-
-    const newMessage: Message = {
-      id: Date.now(),
-      author: 'Tú',
-      text: inputText.trim(),
-      self: true
-    };
-    
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText('');
+  const handleJustLeave = () => {
+    setIsLeaveConfirmOpen(false);
+    navigate('/dashboard');
   };
+
+  const handleLeavePermanently = async () => {
+    if (!room || !user) return;
+    try {
+      await leaveRoom(room.id, user.uid);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error al abandonar la sala', type: 'error' });
+    }
+  };
+
+  if (loadingRoom || !room) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)' }}>
+        <div className="skeleton-pulse" style={{ fontSize: '1.25rem', color: 'var(--text-secondary)' }}>
+          Cargando sala de estudio...
+        </div>
+      </div>
+    );
+  }
+
+  const isHost = room.hostUid === user?.uid;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header Navigation */}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
+      {/* Header Navigation Navbar */}
       <nav className="room-topbar" style={{ borderRadius: 0 }} aria-label="Menú superior de la sala">
         <div className="room-topbar-inner">
-          <Link 
-            to="/dashboard" 
+          <button 
+            onClick={handleExitClick}
             className="btn-secondary interactive-element" 
-            style={{ width: 'auto', padding: '0.75rem 1rem', fontSize: '0.9rem' }}
-            aria-label="Volver al panel general"
+            style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.9rem', borderColor: 'var(--border-color)' }}
+            aria-label="Salir de la sala"
           >
-            ← Volver
-          </Link>
-          <div className="room-topbar-meta">
-            <h1 style={{ fontSize: '1.25rem', margin: 0, fontFamily: 'var(--font-title)' }}>Sala: {id}</h1>
-            <span className="room-badge active" style={{ margin: 0 }}>En Línea</span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>3 Estudiantes</span>
+            ← Salir de sala
+          </button>
+          
+          <div className="room-topbar-meta" style={{ flexGrow: 1, justifyContent: 'center' }}>
+            <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 700 }}>
+              {room.name}
+            </h1>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+              👥 {room.members.length}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            {isHost && (
+              <button
+                onClick={() => setIsEditOpen(true)}
+                className="btn-secondary interactive-element"
+                style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'var(--border-color)' }}
+                aria-label="Configuración de sala"
+              >
+                ⚙️ Configuración
+              </button>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* Main Workspace Layout */}
-      <main className="main-content" style={{ flexGrow: 1, padding: '2rem 2.5rem' }} aria-label={`Área de estudio de la sala ${id}`}>
-        <div className="workspace-grid">
+      {/* Main Layout containing Sidebar and Work Area */}
+      <div style={{ display: 'flex', flexGrow: 1, height: 'calc(100vh - 73px)', overflow: 'hidden' }}>
+        
+        {/* Left Sidebar of Members */}
+        <MembersSidebar
+          members={room.members}
+          hostUid={room.hostUid}
+          currentUserUid={user?.uid || ''}
+        />
+
+        {/* Workspace Areas */}
+        <main 
+          style={{ 
+            flexGrow: 1, 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 320px', 
+            height: '100%', 
+            backgroundColor: 'var(--bg-main)' 
+          }}
+          aria-label="Áreas de trabajo"
+        >
           
-          {/* Left Area: Timer and Study Notes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            {/* Pomodoro Timer component */}
-            <section className="glass-panel timer-container" aria-labelledby="timer-heading">
-              <h2 id="timer-heading" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Temporizador Pomodoro</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Enfócate en bloques de estudio continuos</p>
-              
-              <div className="timer-circle">
-                <div className="timer-display" aria-live="off" aria-label={`Tiempo restante: ${formatTime(secondsLeft)}`}>
-                  {formatTime(secondsLeft)}
-                </div>
-              </div>
+          {/* Main Area: Video Placeholder */}
+          <section 
+            style={{ 
+              padding: '2.5rem', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              borderRight: '1px solid var(--border-color)',
+              textAlign: 'center'
+            }}
+            aria-labelledby="video-placeholder-heading"
+          >
+            <div style={{ fontSize: '5rem', marginBottom: '1.5rem', opacity: 0.8 }} role="img" aria-label="Cámara de video">📹</div>
+            <h2 id="video-placeholder-heading" style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              Las videollamadas estarán disponibles pronto
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '450px' }}>
+              En el Sprint 4 implementaremos videollamadas grupales. Por ahora puedes usar el chat para comunicarte con tus compañeros.
+            </p>
+          </section>
 
-              <div className="timer-controls">
-                <button 
-                  onClick={() => setIsTimerRunning(!isTimerRunning)} 
-                  className="btn-primary interactive-element"
-                  style={{ flex: 2, background: isTimerRunning ? 'var(--color-warning)' : undefined, boxShadow: isTimerRunning ? '0 4px 14px rgba(245, 158, 11, 0.18)' : undefined }}
-                  aria-label={isTimerRunning ? 'Pausar temporizador' : 'Iniciar temporizador de estudio'}
-                >
-                  {isTimerRunning ? '⏸️ Pausar' : '▶️ Empezar'}
-                </button>
-                <button 
-                  onClick={() => {
-                    setIsTimerRunning(false);
-                    setSecondsLeft(1500);
-                  }} 
-                  className="btn-secondary interactive-element"
-                  style={{ flex: 1 }}
-                  aria-label="Restablecer temporizador a 25 minutos"
-                >
-                  🔄 Reset
-                </button>
-              </div>
-            </section>
+          {/* Right Area: Chat Placeholder */}
+          <section 
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between', 
+              height: '100%', 
+              backgroundColor: 'var(--bg-surface)' 
+            }}
+            aria-labelledby="chat-placeholder-heading"
+          >
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+              <h2 id="chat-placeholder-heading" style={{ fontSize: '1.15rem', fontWeight: 700 }}>Chat de la sala</h2>
+            </div>
 
-            {/* Shared Notes workspace */}
-            <section className="glass-panel" style={{ padding: '1.5rem' }} aria-labelledby="notes-heading">
-              <h2 id="notes-heading" style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Mis Notas de Estudio</h2>
-              <textarea
-                className="form-input interactive-element"
-                style={{ width: '100%', minHeight: '180px', resize: 'vertical', fontFamily: 'inherit', padding: '1rem', lineHeight: '1.6' }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                aria-label="Área editable para capturar tus apuntes de estudio"
+            <div style={{ padding: '2rem 1.5rem', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '0.75rem' }}>
+              <div style={{ fontSize: '2.5rem', opacity: 0.6 }} role="img" aria-label="Mensajes">💬</div>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                El chat en tiempo real se implementará en el **Sprint 3**.
+              </p>
+            </div>
+
+            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Próximamente..."
+                disabled
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--bg-main)', opacity: 0.5 }}
+                aria-label="Input de chat deshabilitado"
               />
-            </section>
+            </div>
+          </section>
 
+        </main>
+      </div>
+
+      {/* Host Edit Modal */}
+      {isHost && (
+        <EditRoomModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          room={room}
+          onUpdated={() => setToast({ message: 'Sala actualizada', type: 'success' })}
+        />
+      )}
+
+      {/* Guest Leaving Confirmation Overlay */}
+      {isLeaveConfirmOpen && (
+        <div className="modal-overlay" onClick={() => setIsLeaveConfirmOpen(false)}>
+          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ fontSize: '1.2rem' }}>¿Salir de la sala?</h2>
+              <button type="button" className="modal-close" onClick={() => setIsLeaveConfirmOpen(false)} aria-label="Cerrar modal">
+                &times;
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                Selecciona si deseas simplemente salir al dashboard o abandonar la sala permanentemente.
+              </p>
+            </div>
+
+            <div className="modal-footer" style={{ flexDirection: 'column', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleJustLeave}
+                style={{ width: '100%', padding: '0.65rem' }}
+              >
+                Solo salir al dashboard
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleLeavePermanently}
+                style={{ width: '100%', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.25)', padding: '0.65rem' }}
+              >
+                Salir y abandonar sala permanentemente
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsLeaveConfirmOpen(false)}
+                style={{ width: '100%', border: '0', minHeight: 'auto', padding: '0.5rem', color: 'var(--text-secondary)' }}
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
-
-          {/* Right Area: Workspace Chat Log */}
-          <div>
-            <section className="glass-panel chat-container" aria-labelledby="chat-heading">
-              <div>
-                <h2 id="chat-heading" style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Chat de la Sala</h2>
-                <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }} />
-              </div>
-
-              {/* Chat Message feed */}
-              <div className="chat-messages" aria-live="polite" aria-label="Mensajes de chat recientes">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`chat-bubble ${msg.self ? 'self' : ''}`}>
-                    <div className="chat-bubble-author">{msg.author}</div>
-                    <div className="chat-bubble-text">{msg.text}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Send message text area */}
-              <form onSubmit={handleSendMessage} className="chat-input-wrapper">
-                <input
-                  type="text"
-                  className="form-input interactive-element"
-                  placeholder="Envía un mensaje..."
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  aria-label="Escribe tu mensaje para los demás estudiantes de la sala"
-                />
-                <button 
-                  type="submit" 
-                  className="btn-primary interactive-element" 
-                  style={{ width: 'auto', padding: '0 1.25rem' }}
-                  aria-label="Enviar mensaje al chat"
-                >
-                  Enviar
-                </button>
-              </form>
-            </section>
-          </div>
-
         </div>
-      </main>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="toast-container">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }
