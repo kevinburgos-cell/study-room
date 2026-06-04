@@ -1,9 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../firebase/config';
+import {
+  onAuthStateChanged,
+  User,
+  updateEmail as updateFirebaseEmail,
+  updateProfile as updateFirebaseProfile,
+} from 'firebase/auth';
+import { auth, db } from '../firebase/config';
+import { doc, updateDoc } from 'firebase/firestore';
 import {
   AppUser,
   completeGoogleUsername,
+  deleteAccountData,
+  deleteFirebaseAccount,
   getProfile,
   loginWithEmail,
   loginWithGoogle,
@@ -12,35 +20,32 @@ import {
   updateProfileData,
 } from '../firebase/auth';
 
-type AuthContextType = {
+type AuthContextValue = {
   user: AppUser | null;
   firebaseUser: User | null;
   loading: boolean;
-  error: string | null;
+  error: string;
+  clearError: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<
-    | { onboardingRequired: false; profile: AppUser | null }
-    | { onboardingRequired: true; tempUser: { uid: string; email: string; photoURL: string | null } }
-  >;
+  signInWithGoogle: () => Promise<{
+    onboardingRequired: boolean;
+    tempUser: { uid: string; email: string; photoURL: string | null } | null;
+  }>;
   completeGoogleOnboarding: (username: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserProfile: (name: string, bio: string, studyGoal: string) => Promise<void>;
-  clearError: () => void;
+  updateUserProfile: (username: string, photoURL: string | null) => Promise<void>;
+  updateUserEmail: (email: string) => Promise<void>;
+  deleteCurrentAccount: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingGoogleUser, setPendingGoogleUser] = useState<{
-    uid: string;
-    email: string;
-    photoURL: string | null;
-  } | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -57,138 +62,130 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setError(null);
+  const clearError = () => setError('');
+
+  const withErrorHandling = async <T,>(fn: () => Promise<T>) => {
     try {
-      const res = await loginWithEmail({ email, password });
-      setUser(res.profile);
+      setError('');
+      return await fn();
     } catch (err: any) {
-      setError(err?.message || 'Error al iniciar sesión');
+      setError(err?.message || 'Ocurrió un error inesperado');
       throw err;
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
-    setError(null);
-    try {
-      const res = await registerWithEmail({ username, email, password });
-      setUser(res.profile);
-    } catch (err: any) {
-      setError(err?.message || 'Error al registrarse');
-      throw err;
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    setError(null);
-    try {
-      const res = await loginWithGoogle();
-      if (res.onboardingRequired) {
-        setPendingGoogleUser({
-          uid: res.user.uid,
-          email: res.user.email || '',
-          photoURL: res.user.photoURL,
-        });
-        return {
-          onboardingRequired: true as const,
-          tempUser: {
-            uid: res.user.uid,
-            email: res.user.email || '',
-            photoURL: res.user.photoURL,
-          },
-        };
-      }
-
-      setUser(res.profile);
-      return { onboardingRequired: false as const, profile: res.profile };
-    } catch (err: any) {
-      setError(err?.message || 'Error con Google');
-      throw err;
-    }
-  };
-
-  const completeGoogleOnboarding = async (username: string) => {
-    setError(null);
-    try {
-      const current = auth.currentUser;
-      const source = pendingGoogleUser || {
-        uid: current?.uid || '',
-        email: current?.email || '',
-        photoURL: current?.photoURL || null,
+  const value = useMemo<AuthContextValue>(() => ({
+    user,
+    firebaseUser,
+    loading,
+    error,
+    clearError,
+    login: async (email, password) => {
+      const result = await withErrorHandling(() => loginWithEmail({ email, password }));
+      setFirebaseUser(result.user);
+      setUser(result.profile);
+    },
+    register: async (username, email, password) => {
+      const result = await withErrorHandling(() => registerWithEmail({ username, email, password }));
+      setFirebaseUser(result.user);
+      setUser(result.profile);
+    },
+    signInWithGoogle: async () => {
+      const result = await withErrorHandling(() => loginWithGoogle());
+      setFirebaseUser(result.user);
+      setUser(result.profile);
+      return {
+        onboardingRequired: result.onboardingRequired,
+        tempUser: {
+          uid: result.user.uid,
+          email: result.user.email || '',
+          photoURL: result.user.photoURL,
+        },
       };
-
-      if (!source.uid || !source.email) {
-        throw new Error('No se encontró la sesión de Google');
+    },
+    completeGoogleOnboarding: async (username) => {
+      if (!firebaseUser) {
+        throw new Error('No hay sesión activa');
       }
 
-      const profile = await completeGoogleUsername({
-        uid: source.uid,
-        email: source.email,
-        username,
-        photoURL: source.photoURL,
+      await withErrorHandling(async () => {
+        const profile = await completeGoogleUsername({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          username,
+          photoURL: firebaseUser.photoURL,
+        });
+        setUser(profile);
+        await updateFirebaseProfile(firebaseUser, { displayName: username });
+      });
+    },
+    signOut: async () => {
+      await withErrorHandling(async () => {
+        await logout();
+        setFirebaseUser(null);
+        setUser(null);
+      });
+    },
+    updateUserProfile: async (username, photoURL) => {
+      if (!firebaseUser) {
+        throw new Error('No hay sesión activa');
+      }
+
+      const profile = await withErrorHandling(async () => {
+        const updated = await updateProfileData({
+          uid: firebaseUser.uid,
+          username,
+          photoURL,
+        });
+
+        await updateFirebaseProfile(firebaseUser, {
+          displayName: updated?.username || username,
+          photoURL: photoURL || null,
+        });
+
+        return updated;
       });
 
       setUser(profile);
-      setPendingGoogleUser(null);
-    } catch (err: any) {
-      setError(err?.message || 'Error al completar Google');
-      throw err;
-    }
-  };
+    },
+    updateUserEmail: async (email) => {
+      if (!firebaseUser) {
+        throw new Error('No hay sesión activa');
+      }
 
-  const signOut = async () => {
-    setError(null);
-    try {
-      await logout();
-      setUser(null);
-      setFirebaseUser(null);
-      setPendingGoogleUser(null);
-    } catch (err: any) {
-      setError(err?.message || 'Error al cerrar sesión');
-      throw err;
-    }
-  };
+      const providerIds = firebaseUser.providerData.map((provider) => provider.providerId);
+      if (providerIds.includes('google.com')) {
+        throw new Error('El correo no se puede editar en cuentas de Google');
+      }
 
-  const updateUserProfile = async (name: string, bio: string, studyGoal: string) => {
-    if (!auth.currentUser) {
-      throw new Error('No hay sesión activa');
-    }
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) {
+        throw new Error('Ingresa un correo válido');
+      }
 
-    setError(null);
-    try {
-      const profile = await updateProfileData({
-        uid: auth.currentUser.uid,
-        name,
-        bio,
-        studyGoal,
+      await withErrorHandling(async () => {
+        await updateFirebaseEmail(firebaseUser, normalizedEmail);
+        await updateDoc(doc(db, 'users', firebaseUser.uid), { email: normalizedEmail });
+        setFirebaseUser({ ...firebaseUser, email: normalizedEmail });
+        setUser((current) => (current ? { ...current, email: normalizedEmail } : current));
       });
+    },
+    deleteCurrentAccount: async () => {
+      if (!firebaseUser) {
+        throw new Error('No hay sesión activa');
+      }
 
-      setUser(profile);
-    } catch (err: any) {
-      setError(err?.message || 'Error al actualizar perfil');
-      throw err;
-    }
-  };
-
-  const value = useMemo(
-    () => ({
-      user,
-      firebaseUser,
-      loading,
-      error,
-      login,
-      register,
-      signInWithGoogle,
-      completeGoogleOnboarding,
-      signOut,
-      updateUserProfile,
-      clearError: () => setError(null),
-    }),
-    [user, firebaseUser, loading, error]
-  );
+      await withErrorHandling(async () => {
+        await deleteAccountData(firebaseUser.uid);
+        await deleteFirebaseAccount();
+        setFirebaseUser(null);
+        setUser(null);
+      });
+    },
+  }), [user, firebaseUser, loading, error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

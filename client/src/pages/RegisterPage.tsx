@@ -309,6 +309,8 @@ export default function RegisterPage() {
             <>
               <div className="social-divider">
                 <span>o continúa con</span>
+                
+              
               </div>
 
               <button

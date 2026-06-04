@@ -78,22 +78,21 @@ export default function RoomPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header Navigation */}
-      <nav className="glass-panel" style={{ borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none', padding: '1rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(10, 12, 26, 0.9)' }} aria-label="Menú superior de la sala">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <nav className="room-topbar" style={{ borderRadius: 0 }} aria-label="Menú superior de la sala">
+        <div className="room-topbar-inner">
           <Link 
             to="/dashboard" 
             className="btn-secondary interactive-element" 
-            style={{ width: 'auto', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+            style={{ width: 'auto', padding: '0.75rem 1rem', fontSize: '0.9rem' }}
             aria-label="Volver al panel general"
           >
             ← Volver
           </Link>
-          <span style={{ color: 'var(--text-secondary)' }}>|</span>
-          <h1 style={{ fontSize: '1.25rem', margin: 0, fontFamily: 'var(--font-title)' }}>Sala: {id}</h1>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span className="room-badge active" style={{ margin: 0 }}>En Línea</span>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>3 Estudiantes</span>
+          <div className="room-topbar-meta">
+            <h1 style={{ fontSize: '1.25rem', margin: 0, fontFamily: 'var(--font-title)' }}>Sala: {id}</h1>
+            <span className="room-badge active" style={{ margin: 0 }}>En Línea</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>3 Estudiantes</span>
+          </div>
         </div>
       </nav>
 
@@ -119,7 +118,7 @@ export default function RoomPage() {
                 <button 
                   onClick={() => setIsTimerRunning(!isTimerRunning)} 
                   className="btn-primary interactive-element"
-                  style={{ flex: 2, background: isTimerRunning ? 'linear-gradient(135deg, var(--color-accent-warning), #d97706)' : undefined, boxShadow: isTimerRunning ? '0 4px 14px rgba(245, 158, 11, 0.3)' : undefined }}
+                  style={{ flex: 2, background: isTimerRunning ? 'var(--color-warning)' : undefined, boxShadow: isTimerRunning ? '0 4px 14px rgba(245, 158, 11, 0.18)' : undefined }}
                   aria-label={isTimerRunning ? 'Pausar temporizador' : 'Iniciar temporizador de estudio'}
                 >
                   {isTimerRunning ? '⏸️ Pausar' : '▶️ Empezar'}

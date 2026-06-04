@@ -37,42 +37,54 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
     <div className="dashboard-layout">
       {/* Navigation Sidebar */}
       <nav className="sidebar" aria-label="Navegación principal de la aplicación">
-        <div>
-          <div className="logo-container">
-            <div className="logo-icon">SR</div>
-            <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-title)' }}>StudyRoom</span>
+        <details className="sidebar-mobile-shell" open>
+          <summary className="sidebar-mobile-toggle interactive-element" aria-label="Abrir o cerrar menú">
+            <span className="sidebar-mobile-bars" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>Menú</span>
+          </summary>
+          <div className="sidebar-shell-content">
+            <div>
+              <div className="logo-container">
+                <div className="logo-icon">SR</div>
+                <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-title)' }}>StudyRoom</span>
+              </div>
+              <ul className="nav-list">
+                <li>
+                  <NavLink 
+                    to="/dashboard" 
+                    className={({ isActive }) => `nav-link interactive-element ${isActive ? 'active' : ''}`}
+                    aria-label="Ir al panel general"
+                  >
+                    📊 Panel General
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink 
+                    to="/profile" 
+                    className={({ isActive }) => `nav-link interactive-element ${isActive ? 'active' : ''}`}
+                    aria-label="Ir a mi perfil"
+                  >
+                    👤 Mi Perfil
+                  </NavLink>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <button 
+                onClick={onLogout} 
+                className="btn-secondary interactive-element" 
+                style={{ borderColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5' }}
+                aria-label="Cerrar sesión de la aplicación"
+              >
+                🚪 Cerrar Sesión
+              </button>
+            </div>
           </div>
-          <ul className="nav-list">
-            <li>
-              <NavLink 
-                to="/dashboard" 
-                className={({ isActive }) => `nav-link interactive-element ${isActive ? 'active' : ''}`}
-                aria-label="Ir al panel general"
-              >
-                📊 Panel General
-              </NavLink>
-            </li>
-            <li>
-              <NavLink 
-                to="/profile" 
-                className={({ isActive }) => `nav-link interactive-element ${isActive ? 'active' : ''}`}
-                aria-label="Ir a mi perfil"
-              >
-                👤 Mi Perfil
-              </NavLink>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <button 
-            onClick={onLogout} 
-            className="btn-secondary interactive-element" 
-            style={{ borderColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5' }}
-            aria-label="Cerrar sesión de la aplicación"
-          >
-            🚪 Cerrar Sesión
-          </button>
-        </div>
+        </details>
       </nav>
 
       {/* Main Content Area */}
@@ -82,7 +94,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
             <h1 id="dashboard-title">Panel General</h1>
             <p className="page-title-desc">¡Bienvenido de vuelta, {user?.name || 'Estudiante'}! Selecciona una sala para empezar a estudiar.</p>
           </div>
-          <div style={{ padding: '0.5rem 1rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', fontSize: '0.85rem', color: '#a5b4fc', fontWeight: 600 }}>
+          <div style={{ padding: '0.5rem 1rem', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>
             @{user?.username || 'estudiante'}
           </div>
         </header>

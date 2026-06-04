@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -9,6 +10,7 @@ import {
   collection,
   doc,
   getDoc,
+  deleteDoc,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -21,10 +23,10 @@ export type AppUser = {
   email: string;
   username: string;
   photoURL: string | null;
-  createdAt: unknown;
   name?: string;
-  bio?: string;
   studyGoal?: string;
+  bio?: string;
+  createdAt: unknown;
 };
 
 const usersRef = collection(db, 'users');
@@ -203,15 +205,62 @@ export async function getProfile(uid: string) {
 
 export async function updateProfileData(params: {
   uid: string;
-  name: string;
-  bio: string;
-  studyGoal: string;
+  username: string;
+  photoURL: string | null;
 }) {
-  await updateDoc(doc(db, 'users', params.uid), {
-    name: params.name,
-    bio: params.bio,
-    studyGoal: params.studyGoal,
+  const normalizedNew = params.username.trim().toLowerCase();
+  const userRef = doc(db, 'users', params.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    throw new Error('No se encontró el perfil');
+  }
+
+  const currentProfile = userSnap.data() as AppUser;
+  const normalizedCurrent = currentProfile.username.trim().toLowerCase();
+
+  await runTransaction(db, async (transaction) => {
+    const newUsernameRef = doc(db, 'usernames', normalizedNew);
+    const newUsernameSnap = await transaction.get(newUsernameRef);
+
+    if (normalizedNew !== normalizedCurrent && newUsernameSnap.exists()) {
+      throw new Error('Este username ya está en uso');
+    }
+
+    if (normalizedNew !== normalizedCurrent) {
+      transaction.delete(doc(db, 'usernames', normalizedCurrent));
+      transaction.set(newUsernameRef, {
+        uid: params.uid,
+        username: params.username.trim(),
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    transaction.update(userRef, {
+      username: params.username.trim(),
+      photoURL: params.photoURL,
+    });
   });
 
   return await getUserProfile(params.uid);
+}
+
+export async function deleteAccountData(uid: string) {
+  const profile = await getUserProfile(uid);
+
+  if (profile?.username) {
+    await deleteDoc(doc(db, 'usernames', profile.username.trim().toLowerCase()));
+  }
+
+  await deleteDoc(doc(db, 'users', uid));
+
+  return profile;
+}
+
+export async function deleteFirebaseAccount() {
+  if (!auth.currentUser) {
+    throw new Error('No hay sesión activa');
+  }
+
+  await deleteUser(auth.currentUser);
 }
