@@ -148,7 +148,20 @@ export default function ProfilePage({ onLogout }: ProfilePageProps) {
           </div>
         </header>
 
-        {success && <div className="alert-box alert-info" role="alert">{success}</div>}
+        {success && (
+          <div
+            className="alert-box"
+            role="alert"
+            style={{
+              marginBottom: '1.5rem',
+              background: 'rgba(34, 197, 94, 0.12)',
+              border: '1px solid rgba(34, 197, 94, 0.25)',
+              color: '#86efac',
+            }}
+          >
+            ✅ {success}
+          </div>
+        )}
         {error && <div className="alert-box" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5' }} role="alert">{error}</div>}
 
         <section className="glass-panel" style={{ padding: '2rem' }}>
