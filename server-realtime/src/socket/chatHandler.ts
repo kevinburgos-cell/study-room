@@ -39,13 +39,9 @@ export function registerChatHandlers(io: Server, socket: Socket) {
       };
 
       // 3. Save to Firestore under rooms/{roomId}/messages/{messageId}
-      try {
-        const db = admin.firestore();
-        await db.collection('rooms').doc(roomId).collection('messages').doc(messageId).set(message);
-      } catch (dbError: any) {
-        console.error('[Socket Chat] Failed to persist message to Firestore:', dbError.message || dbError);
-        // Continue even if database is in mock or offline mode, but log it
-      }
+      const db = admin.firestore();
+      await db.collection('rooms').doc(roomId).collection('messages').doc(messageId).set(message);
+      console.log(`[Socket Chat] Message ${messageId} persisted in Firestore for room ${roomId}`);
 
       // 4. Emit "new-message" to ALL in the room
       io.to(roomId).emit('new-message', message);
