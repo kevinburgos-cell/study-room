@@ -4,8 +4,6 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import admin from 'firebase-admin';
-import path from 'path';
-import fs from 'fs';
 import { initializeSockets } from './socket';
 
 // Load environment variables
@@ -59,25 +57,9 @@ function loadServiceAccountFromEnv() {
   };
 }
 
-const credentialsPath = process.env.FIREBASE_CREDENTIALS_PATH;
 const serviceAccountFromEnv = loadServiceAccountFromEnv();
 
-if (credentialsPath) {
-  try {
-    const absolutePath = path.resolve(process.cwd(), credentialsPath);
-    if (fs.existsSync(absolutePath)) {
-      const serviceAccount = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-      console.log(`[Firebase] Admin SDK initialized using credentials file: ${credentialsPath}`);
-    } else {
-      throw new Error(`Credentials file not found at: ${absolutePath}`);
-    }
-  } catch (err: any) {
-    console.error('[Firebase] Failed to initialize Admin SDK with file path:', err.message || err);
-  }
-} else if (serviceAccountFromEnv) {
+if (serviceAccountFromEnv) {
   try {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccountFromEnv),
@@ -86,16 +68,11 @@ if (credentialsPath) {
     console.log('[Firebase] Admin SDK initialized successfully with env credentials for project:', projectLabel);
   } catch (err: any) {
     console.error('[Firebase] Failed to initialize Admin SDK with custom cert:', err.message || err);
+    process.exit(1);
   }
 } else {
-  try {
-    admin.initializeApp();
-    console.log('[Firebase] Admin SDK initialized using default application credentials.');
-  } catch (err) {
-    console.warn(
-      '[Firebase] Warning: Firebase credentials not set. WebSockets verifyToken will fail until configured.'
-    );
-  }
+  console.error('[Firebase] Missing Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON or the individual FIREBASE_* env vars.');
+  process.exit(1);
 }
 
 // Create HTTP server
