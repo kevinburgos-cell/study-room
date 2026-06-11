@@ -9,6 +9,8 @@ const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const socket_1 = require("./socket");
 // Load environment variables
 dotenv_1.default.config();
@@ -26,14 +28,36 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'study-room-realtime' });
 });
 // Initialize Firebase Admin SDK
+function loadServiceAccountFromEnv() {
+    const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    if (rawJson) {
+        try {
+            const parsed = JSON.parse(rawJson);
+            if (parsed.private_key) {
+                parsed.private_key = parsed.private_key.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
+            }
+            return parsed;
+        }
+        catch (error) {
+            console.error('[Firebase] Error parsing FIREBASE_SERVICE_ACCOUNT_JSON:', error);
+        }
+    }
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+        ? process.env.FIREBASE_PRIVATE_KEY.replace(/^"|"$/g, '').replace(/\\n/g, '\n').replace(/\r\n/g, '\n').trim()
+        : undefined;
+    if (!projectId || !clientEmail || !privateKey) {
+        return null;
+    }
+    return {
+        projectId,
+        clientEmail,
+        privateKey,
+    };
+}
 const credentialsPath = process.env.FIREBASE_CREDENTIALS_PATH;
-const projectId = process.env.FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_PRIVATE_KEY
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-    : undefined;
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
+const serviceAccountFromEnv = loadServiceAccountFromEnv();
 if (credentialsPath) {
     try {
         const absolutePath = path_1.default.resolve(process.cwd(), credentialsPath);
@@ -52,16 +76,13 @@ if (credentialsPath) {
         console.error('[Firebase] Failed to initialize Admin SDK with file path:', err.message || err);
     }
 }
-else if (projectId && clientEmail && privateKey) {
+else if (serviceAccountFromEnv) {
     try {
         firebase_admin_1.default.initializeApp({
-            credential: firebase_admin_1.default.credential.cert({
-                projectId,
-                clientEmail,
-                privateKey,
-            }),
+            credential: firebase_admin_1.default.credential.cert(serviceAccountFromEnv),
         });
-        console.log('[Firebase] Admin SDK initialized successfully with individual properties.');
+        const projectLabel = serviceAccountFromEnv.project_id || serviceAccountFromEnv.projectId || 'unknown';
+        console.log('[Firebase] Admin SDK initialized successfully with env credentials for project:', projectLabel);
     }
     catch (err) {
         console.error('[Firebase] Failed to initialize Admin SDK with custom cert:', err.message || err);

@@ -34,24 +34,22 @@ function registerChatHandlers(io, socket) {
                 senderUsername: username,
                 senderPhotoURL: photoURL,
                 text: trimmedText,
-                timestamp: new Date().toISOString()
+                timestamp: firebase_admin_1.default.firestore.FieldValue.serverTimestamp()
             };
             // 3. Save to Firestore under rooms/{roomId}/messages/{messageId}
-            try {
-                const db = firebase_admin_1.default.firestore();
-                await db.collection('rooms').doc(roomId).collection('messages').doc(messageId).set(message);
-            }
-            catch (dbError) {
-                console.error('[Socket Chat] Failed to persist message to Firestore:', dbError.message || dbError);
-                // Continue even if database is in mock or offline mode, but log it
-            }
-            // 4. Emit "new-message" to ALL in the room
-            io.to(roomId).emit('new-message', message);
+            const db = firebase_admin_1.default.firestore();
+            await db.collection('rooms').doc(roomId).collection('messages').doc(messageId).set(message);
+            console.log(`[Socket Chat] Message ${messageId} persisted in Firestore for room ${roomId}`);
+            // 4. Emit "new-message" to ALL in the room with a serializable timestamp
+            io.to(roomId).emit('new-message', {
+                ...message,
+                timestamp: new Date().toISOString(),
+            });
             console.log(`[Socket Chat] Message ${messageId} broadcasted to room ${roomId}`);
         }
         catch (err) {
             console.error('[Socket Chat] Error in send-message event:', err.message || err);
-            socket.emit('error', { message: err.message || 'Error al enviar el mensaje' });
+            socket.emit('error', { message: 'No se pudo enviar el mensaje, intenta de nuevo' });
         }
     });
 }
