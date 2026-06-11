@@ -9,8 +9,6 @@ const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
 const socket_1 = require("./socket");
 // Load environment variables
 dotenv_1.default.config();
@@ -56,27 +54,8 @@ function loadServiceAccountFromEnv() {
         privateKey,
     };
 }
-const credentialsPath = process.env.FIREBASE_CREDENTIALS_PATH;
 const serviceAccountFromEnv = loadServiceAccountFromEnv();
-if (credentialsPath) {
-    try {
-        const absolutePath = path_1.default.resolve(process.cwd(), credentialsPath);
-        if (fs_1.default.existsSync(absolutePath)) {
-            const serviceAccount = JSON.parse(fs_1.default.readFileSync(absolutePath, 'utf8'));
-            firebase_admin_1.default.initializeApp({
-                credential: firebase_admin_1.default.credential.cert(serviceAccount),
-            });
-            console.log(`[Firebase] Admin SDK initialized using credentials file: ${credentialsPath}`);
-        }
-        else {
-            throw new Error(`Credentials file not found at: ${absolutePath}`);
-        }
-    }
-    catch (err) {
-        console.error('[Firebase] Failed to initialize Admin SDK with file path:', err.message || err);
-    }
-}
-else if (serviceAccountFromEnv) {
+if (serviceAccountFromEnv) {
     try {
         firebase_admin_1.default.initializeApp({
             credential: firebase_admin_1.default.credential.cert(serviceAccountFromEnv),
@@ -86,16 +65,12 @@ else if (serviceAccountFromEnv) {
     }
     catch (err) {
         console.error('[Firebase] Failed to initialize Admin SDK with custom cert:', err.message || err);
+        process.exit(1);
     }
 }
 else {
-    try {
-        firebase_admin_1.default.initializeApp();
-        console.log('[Firebase] Admin SDK initialized using default application credentials.');
-    }
-    catch (err) {
-        console.warn('[Firebase] Warning: Firebase credentials not set. WebSockets verifyToken will fail until configured.');
-    }
+    console.error('[Firebase] Missing Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON or the individual FIREBASE_* env vars.');
+    process.exit(1);
 }
 // Create HTTP server
 const httpServer = (0, http_1.createServer)(app);
