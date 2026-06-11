@@ -13,16 +13,15 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
   const { messages, isLoading, error, sendError, sendMessage, retryLoadHistory } = useChat(roomId);
   
   const containerRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
   // Scroll to bottom helper
   const scrollToBottom = () => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-      setNewMessagesCount(0);
-      setIsNearBottom(true);
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    setNewMessagesCount(0);
+    setIsNearBottom(true);
   };
 
   // Scroll event handler to check if user is near bottom
@@ -42,7 +41,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
   // Scroll to bottom on initial history load
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
-      requestAnimationFrame(scrollToBottom);
+      requestAnimationFrame(() => scrollToBottom());
     }
   }, [isLoading, messages.length]);
 
@@ -86,6 +85,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        minHeight: 0,
         backgroundColor: 'var(--bg-surface)',
         borderLeft: '1px solid var(--border-color)',
         position: 'relative',
@@ -102,6 +102,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
         onScroll={handleScroll}
         style={{
           flexGrow: 1,
+          minHeight: 0,
           padding: '1.5rem',
           overflowY: 'auto',
           display: 'flex',
@@ -204,6 +205,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
             );
           })
         )}
+        <div ref={bottomRef} />
       </div>
 
       {/* Floating "New Messages" Badge Indicator */}
@@ -239,7 +241,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
       <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'rgba(30, 41, 59, 0.2)' }}>
         <ChatInput
           onSendMessage={sendMessage}
-          onSent={() => requestAnimationFrame(scrollToBottom)}
+          onSent={() => requestAnimationFrame(() => scrollToBottom())}
           isLoading={isLoading}
           error={sendError}
         />
