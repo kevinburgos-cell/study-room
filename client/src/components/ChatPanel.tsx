@@ -101,7 +101,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
         ref={containerRef}
         onScroll={handleScroll}
         style={{
-          flexGrow: 1,
+          flex: '1 1 0',
           minHeight: 0,
           padding: '1.5rem',
           overflowY: 'auto',
@@ -238,7 +238,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
       )}
 
       {/* Input Area */}
-      <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'rgba(30, 41, 59, 0.2)' }}>
+      <div style={{ flexShrink: 0, padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'rgba(30, 41, 59, 0.2)' }}>
         <ChatInput
           onSendMessage={sendMessage}
           onSent={() => requestAnimationFrame(() => scrollToBottom())}

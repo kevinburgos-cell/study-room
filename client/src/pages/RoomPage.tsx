@@ -242,6 +242,8 @@ export default function RoomPage() {
             display: 'grid', 
             gridTemplateColumns: '1fr 320px', 
             height: '100%', 
+            minHeight: 0,
+            overflow: 'hidden',
             backgroundColor: 'var(--bg-main)' 
           }}
           aria-label="Áreas de trabajo"
@@ -256,6 +258,7 @@ export default function RoomPage() {
               alignItems: 'center', 
               justifyContent: 'center',
               borderRight: '1px solid var(--border-color)',
+              minHeight: 0,
               textAlign: 'center'
             }}
             aria-labelledby="video-placeholder-heading"
