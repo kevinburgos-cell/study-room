@@ -53,7 +53,6 @@ async function getRoomById(req, res) {
 async function getRoomMessages(req, res) {
   try {
     const { roomId } = req.params;
-    const beforeVal = req.query.before;
     const limitVal = Math.min(parseInt(req.query.limit, 10) || 100, 100);
 
     if (isMock) {
@@ -73,30 +72,27 @@ async function getRoomMessages(req, res) {
       return res.status(404).json({ error: 'Sala no encontrada' });
     }
 
-    let queryRef = db
+    const queryRef = db
       .collection('rooms')
       .doc(roomId)
       .collection('messages')
-      .orderBy('timestamp', 'desc');
+      .orderBy('timestamp', 'asc')
+      .limit(limitVal);
 
-    if (beforeVal) {
-      const beforeDate = new Date(beforeVal);
-      if (!Number.isNaN(beforeDate.getTime())) {
-        queryRef = queryRef.startAfter(beforeVal);
-      }
-    }
-
-    const snapshot = await queryRef.limit(limitVal).get();
+    const snapshot = await queryRef.get();
 
     const messages = [];
     snapshot.forEach((doc) => {
       messages.push({ id: doc.id, ...doc.data() });
     });
 
-    return res.json(messages.reverse());
+    return res.json(messages);
   } catch (error) {
     console.error('Error fetching room messages:', error);
-    return res.status(500).json({ error: 'Error interno del servidor al obtener el historial de mensajes' });
+    return res.status(500).json({
+      error: 'Error interno del servidor al obtener el historial de mensajes',
+      details: error.message || String(error),
+    });
   }
 }
 
