@@ -23,10 +23,27 @@ function loadServiceAccountFromFile() {
 }
 
 function loadServiceAccountFromEnv() {
+  const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (rawJson) {
+    try {
+      const parsed = JSON.parse(rawJson);
+      if (parsed.private_key) {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
+      }
+      return parsed;
+    } catch (error) {
+      console.error('Error parsing FIREBASE_SERVICE_ACCOUNT_JSON:', error);
+    }
+  }
+
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    ? process.env.FIREBASE_PRIVATE_KEY
+      .replace(/^"|"$/g, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\r\n/g, '\n')
+      .trim()
     : undefined;
 
   if (!projectId || !clientEmail || !privateKey) {
