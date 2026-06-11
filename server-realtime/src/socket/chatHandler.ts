@@ -35,7 +35,7 @@ export function registerChatHandlers(io: Server, socket: Socket) {
         senderUsername: username,
         senderPhotoURL: photoURL,
         text: trimmedText,
-        timestamp: new Date().toISOString()
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
       };
 
       // 3. Save to Firestore under rooms/{roomId}/messages/{messageId}
@@ -43,12 +43,15 @@ export function registerChatHandlers(io: Server, socket: Socket) {
       await db.collection('rooms').doc(roomId).collection('messages').doc(messageId).set(message);
       console.log(`[Socket Chat] Message ${messageId} persisted in Firestore for room ${roomId}`);
 
-      // 4. Emit "new-message" to ALL in the room
-      io.to(roomId).emit('new-message', message);
+      // 4. Emit "new-message" to ALL in the room with a serializable timestamp
+      io.to(roomId).emit('new-message', {
+        ...message,
+        timestamp: new Date().toISOString(),
+      });
       console.log(`[Socket Chat] Message ${messageId} broadcasted to room ${roomId}`);
     } catch (err: any) {
       console.error('[Socket Chat] Error in send-message event:', err.message || err);
-      socket.emit('error', { message: err.message || 'Error al enviar el mensaje' });
+      socket.emit('error', { message: 'No se pudo enviar el mensaje, intenta de nuevo' });
     }
   });
 }

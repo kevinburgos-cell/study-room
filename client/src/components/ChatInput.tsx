@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => Promise<void>;
+  onSent?: () => void;
   isLoading: boolean;
   error?: string | null;
 }
 
-export default function ChatInput({ onSendMessage, isLoading, error }: ChatInputProps) {
+export default function ChatInput({ onSendMessage, onSent, isLoading, error }: ChatInputProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -22,6 +23,7 @@ export default function ChatInput({ onSendMessage, isLoading, error }: ChatInput
     try {
       await onSendMessage(text);
       setText('');
+      onSent?.();
     } catch (err) {
       console.error(err);
       setLocalError('No se pudo enviar. Intenta de nuevo');

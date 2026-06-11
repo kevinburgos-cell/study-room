@@ -237,7 +237,12 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
 
       {/* Input Area */}
       <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'rgba(30, 41, 59, 0.2)' }}>
-        <ChatInput onSendMessage={sendMessage} isLoading={isLoading} error={sendError} />
+        <ChatInput
+          onSendMessage={sendMessage}
+          onSent={() => requestAnimationFrame(scrollToBottom)}
+          isLoading={isLoading}
+          error={sendError}
+        />
       </div>
     </div>
   );
