@@ -80,7 +80,15 @@ function registerRoomHandlers(io, socket) {
         delete socket.roomId;
         delete socket.uid;
     });
-    // 3. Disconnect Event (automatic)
+    // 3. Delete Room Event
+    socket.on('delete-room', (payload) => {
+        const { roomId } = payload;
+        if (!roomId)
+            return;
+        io.to(roomId).emit('room-deleted', { roomId });
+        console.log(`[Socket] Room ${roomId} was deleted. Notifying clients.`);
+    });
+    // 4. Disconnect Event (automatic)
     socket.on('disconnect', () => {
         // Search across all rooms to remove this socket and notify others
         for (const roomId in connectedUsers) {
