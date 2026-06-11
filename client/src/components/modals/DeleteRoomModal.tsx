@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { deleteRoom } from '../../hooks/useRooms';
 import { Room } from '../../types/room.types';
+import { socket } from '../../socket/socket';
 
 interface DeleteRoomModalProps {
   isOpen: boolean;
@@ -20,7 +21,12 @@ export default function DeleteRoomModal({ isOpen, onClose, room, onDeleted }: De
     setLoading(true);
 
     try {
+      // Notify other users via socket
+      socket.emit('delete-room', { roomId: room.id });
+      
+      // Perform deletion in Firestore
       await deleteRoom(room.id);
+      
       onDeleted();
       onClose();
     } catch (err: any) {

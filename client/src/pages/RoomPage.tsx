@@ -7,7 +7,10 @@ import { leaveRoom } from '../hooks/useRooms';
 import { Room } from '../types/room.types';
 import MembersSidebar from '../components/MembersSidebar';
 import EditRoomModal from '../components/modals/EditRoomModal';
+import DeleteRoomModal from '../components/modals/DeleteRoomModal';
 import Toast from '../components/Toast';
+import ChatPanel from '../components/ChatPanel';
+import { socket } from '../socket/socket';
 
 // Sockets hooks imports
 import { useSocket } from '../hooks/useSocket';
@@ -23,10 +26,25 @@ export default function RoomPage() {
 
   // Modal and dialog states
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  const [isDeletedModalOpen, setIsDeletedModalOpen] = useState(false);
   
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Listen for room-deleted event from socket
+  useEffect(() => {
+    const handleRoomDeleted = () => {
+      setIsDeletedModalOpen(true);
+    };
+
+    socket.on('room-deleted', handleRoomDeleted);
+
+    return () => {
+      socket.off('room-deleted', handleRoomDeleted);
+    };
+  }, []);
 
   // Firestore subscription to check authorization and get host info
   useEffect(() => {
@@ -183,14 +201,24 @@ export default function RoomPage() {
 
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             {isHost && (
-              <button
-                onClick={() => setIsEditOpen(true)}
-                className="btn-secondary interactive-element"
-                style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'var(--border-color)' }}
-                aria-label="Configuración de sala"
-              >
-                ⚙️ Configuración
-              </button>
+              <>
+                <button
+                  onClick={() => setIsEditOpen(true)}
+                  className="btn-secondary interactive-element"
+                  style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'var(--border-color)' }}
+                  aria-label="Editar sala"
+                >
+                  ✏️ Editar
+                </button>
+                <button
+                  onClick={() => setIsDeleteOpen(true)}
+                  className="btn-secondary interactive-element"
+                  style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5' }}
+                  aria-label="Eliminar sala"
+                >
+                  ⚠️ Eliminar
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -241,39 +269,8 @@ export default function RoomPage() {
             </p>
           </section>
 
-          {/* Right Area: Chat Placeholder */}
-          <section 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              justifyContent: 'space-between', 
-              height: '100%', 
-              backgroundColor: 'var(--bg-surface)' 
-            }}
-            aria-labelledby="chat-placeholder-heading"
-          >
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-              <h2 id="chat-placeholder-heading" style={{ fontSize: '1.15rem', fontWeight: 700 }}>Chat de la sala</h2>
-            </div>
-
-            <div style={{ padding: '2rem 1.5rem', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '0.75rem' }}>
-              <div style={{ fontSize: '2.5rem', opacity: 0.6 }} role="img" aria-label="Mensajes">💬</div>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                El chat en tiempo real se implementará en el **Sprint 3**.
-              </p>
-            </div>
-
-            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Próximamente..."
-                disabled
-                style={{ cursor: 'not-allowed', backgroundColor: 'var(--bg-main)', opacity: 0.5 }}
-                aria-label="Input de chat deshabilitado"
-              />
-            </div>
-          </section>
+          {/* Chat Panel */}
+          <ChatPanel roomId={room.id} />
 
         </main>
       </div>
@@ -285,6 +282,19 @@ export default function RoomPage() {
           onClose={() => setIsEditOpen(false)}
           room={room}
           onUpdated={() => setToast({ message: 'Sala actualizada', type: 'success' })}
+        />
+      )}
+
+      {isHost && (
+        <DeleteRoomModal
+          isOpen={isDeleteOpen}
+          onClose={() => setIsDeleteOpen(false)}
+          room={room}
+          onDeleted={() => {
+            setToast({ message: 'Sala eliminada', type: 'success' });
+            setIsDeleteOpen(false);
+            navigate('/dashboard');
+          }}
         />
       )}
 
@@ -343,6 +353,37 @@ export default function RoomPage() {
             type={toast.type}
             onClose={() => setToast(null)}
           />
+        </div>
+      )}
+
+      {/* Room Deleted Modal Overlay */}
+      {isDeletedModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ color: 'var(--color-danger)', fontSize: '1.25rem' }}>⚠️ Sala Eliminada</h2>
+            </div>
+            
+            <div className="modal-body">
+              <p style={{ fontSize: '0.95rem', color: '#ffffff', lineHeight: '1.5' }}>
+                Esta sala de estudio fue eliminada por el anfitrión.
+              </p>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setIsDeletedModalOpen(false);
+                  navigate('/dashboard');
+                }}
+                style={{ width: '100%', padding: '0.65rem' }}
+              >
+                Volver al dashboard
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

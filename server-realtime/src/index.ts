@@ -11,7 +11,10 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URLS = (process.env.CLIENT_URLS || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Setup basic Express middleware
 app.use(cors());
@@ -78,10 +81,7 @@ const httpServer = createServer(app);
 // Setup Socket.io with dynamic CORS origins
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      'http://localhost:5173',
-      CLIENT_URL
-    ],
+    origin: CLIENT_URLS,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -93,5 +93,5 @@ initializeSockets(io);
 // Start server
 httpServer.listen(PORT, () => {
   console.log(`[Server] Realtime WebSocket server is listening on port ${PORT}`);
-  console.log(`[Server] Allowing CORS origins: http://localhost:5173 and ${CLIENT_URL}`);
+  console.log(`[Server] Allowing CORS origins: ${CLIENT_URLS.join(', ')}`);
 });

@@ -1,5 +1,12 @@
 services:
   - type: web
+    name: study-room-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+  - type: web
     name: study-room-realtime
     runtime: node
     rootDir: server-realtime
