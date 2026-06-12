@@ -22,6 +22,17 @@ const ALLOWED_ORIGINS = (process.env.CLIENT_URLS || 'http://localhost:5173')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    return callback(null, true);
+  },
+  credentials: true,
+}));
+app.use(express.json());
+app.use(morgan('dev'));
+
 const swaggerCustomCss = `
   :root {
     --sr-bg: #0b1220;
