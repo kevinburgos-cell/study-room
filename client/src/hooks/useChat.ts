@@ -110,7 +110,7 @@ export function useChat(roomId: string | undefined) {
       }
 
       setSendError(null);
-      const token = await firebaseUser.getIdToken();
+      const token = await firebaseUser.getIdToken(true);
       socket.emit('send-message', {
         roomId,
         text: text.trim(),
