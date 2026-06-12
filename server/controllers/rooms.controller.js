@@ -54,6 +54,7 @@ async function getRoomMessages(req, res) {
   try {
     const { roomId } = req.params;
     const limitVal = Math.min(parseInt(req.query.limit, 10) || 100, 100);
+    const beforeVal = typeof req.query.before === 'string' ? req.query.before : null;
 
     if (isMock) {
       const room = mockRooms.find((r) => r.id === roomId);

@@ -56,7 +56,12 @@ export function useChat(roomId: string | undefined) {
       setMessages(normalized);
     } catch (err: any) {
       console.error('Failed to load chat history:', err);
-      setError(err?.message || 'No se pudo cargar el historial. Reintentar');
+      const isNetworkError = err instanceof TypeError && String(err.message || '').toLowerCase().includes('fetch');
+      setError(
+        isNetworkError
+          ? 'No se pudo conectar con el servidor de chat. Verifica que el backend esté activo.'
+          : (err?.message || 'No se pudo cargar el historial. Reintentar')
+      );
     } finally {
       setIsLoading(false);
     }
