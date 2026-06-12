@@ -9,6 +9,8 @@ const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const socket_1 = require("./socket");
 // Load environment variables
 dotenv_1.default.config();
@@ -54,14 +56,32 @@ function loadServiceAccountFromEnv() {
         privateKey,
     };
 }
+function loadServiceAccountFromFile() {
+    const credPath = process.env.FIREBASE_CREDENTIALS_PATH || './firebase-service-account.json';
+    const absoluteCredPath = path_1.default.resolve(__dirname, '..', credPath);
+    if (!fs_1.default.existsSync(absoluteCredPath)) {
+        console.warn(`[Firebase] Service account file not found at ${absoluteCredPath}.`);
+        return null;
+    }
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        return require(absoluteCredPath);
+    }
+    catch (error) {
+        console.error('[Firebase] Error reading service account key file:', error);
+        return null;
+    }
+}
 const serviceAccountFromEnv = loadServiceAccountFromEnv();
-if (serviceAccountFromEnv) {
+const serviceAccountFromFile = loadServiceAccountFromFile();
+const serviceAccount = serviceAccountFromEnv || serviceAccountFromFile;
+if (serviceAccount) {
     try {
         firebase_admin_1.default.initializeApp({
-            credential: firebase_admin_1.default.credential.cert(serviceAccountFromEnv),
+            credential: firebase_admin_1.default.credential.cert(serviceAccount),
         });
-        const projectLabel = serviceAccountFromEnv.project_id || serviceAccountFromEnv.projectId || 'unknown';
-        console.log('[Firebase] Admin SDK initialized successfully with env credentials for project:', projectLabel);
+        const projectLabel = serviceAccount.project_id || serviceAccount.projectId || 'unknown';
+        console.log('[Firebase] Admin SDK initialized successfully for project:', projectLabel);
     }
     catch (err) {
         console.error('[Firebase] Failed to initialize Admin SDK with custom cert:', err.message || err);
@@ -69,7 +89,7 @@ if (serviceAccountFromEnv) {
     }
 }
 else {
-    console.error('[Firebase] Missing Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON or the individual FIREBASE_* env vars.');
+    console.error('[Firebase] Missing Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON, FIREBASE_* env vars, or FIREBASE_CREDENTIALS_PATH.');
     process.exit(1);
 }
 // Create HTTP server

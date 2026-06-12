@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import admin from 'firebase-admin';
+import fs from 'fs';
+import path from 'path';
 import { initializeSockets } from './socket';
 
 // Load environment variables
@@ -57,21 +59,41 @@ function loadServiceAccountFromEnv() {
   };
 }
 
-const serviceAccountFromEnv = loadServiceAccountFromEnv();
+function loadServiceAccountFromFile() {
+  const credPath = process.env.FIREBASE_CREDENTIALS_PATH || './firebase-service-account.json';
+  const absoluteCredPath = path.resolve(__dirname, '..', credPath);
 
-if (serviceAccountFromEnv) {
+  if (!fs.existsSync(absoluteCredPath)) {
+    console.warn(`[Firebase] Service account file not found at ${absoluteCredPath}.`);
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require(absoluteCredPath);
+  } catch (error) {
+    console.error('[Firebase] Error reading service account key file:', error);
+    return null;
+  }
+}
+
+const serviceAccountFromEnv = loadServiceAccountFromEnv();
+const serviceAccountFromFile = loadServiceAccountFromFile();
+const serviceAccount = serviceAccountFromEnv || serviceAccountFromFile;
+
+if (serviceAccount) {
   try {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccountFromEnv),
+      credential: admin.credential.cert(serviceAccount),
     });
-    const projectLabel = (serviceAccountFromEnv as any).project_id || serviceAccountFromEnv.projectId || 'unknown';
-    console.log('[Firebase] Admin SDK initialized successfully with env credentials for project:', projectLabel);
+    const projectLabel = (serviceAccount as any).project_id || (serviceAccount as any).projectId || 'unknown';
+    console.log('[Firebase] Admin SDK initialized successfully for project:', projectLabel);
   } catch (err: any) {
     console.error('[Firebase] Failed to initialize Admin SDK with custom cert:', err.message || err);
     process.exit(1);
   }
 } else {
-  console.error('[Firebase] Missing Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON or the individual FIREBASE_* env vars.');
+  console.error('[Firebase] Missing Firebase credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON, FIREBASE_* env vars, or FIREBASE_CREDENTIALS_PATH.');
   process.exit(1);
 }
 
