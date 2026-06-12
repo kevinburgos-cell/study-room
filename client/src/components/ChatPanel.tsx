@@ -17,6 +17,11 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
+  const parseMessageDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
   // Scroll to bottom helper
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -61,22 +66,22 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
 
   // Date separator label helper
   const getGroupedDateLabel = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      const today = new Date();
-      const yesterday = new Date();
-      yesterday.setDate(today.getDate() - 1);
+    const date = parseMessageDate(dateStr);
+    if (!date) return '';
 
-      if (date.toDateString() === today.toDateString()) {
-        return 'Hoy';
-      } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Ayer';
-      } else {
-        return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-      }
-    } catch (e) {
-      return '';
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Hoy';
     }
+
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Ayer';
+    }
+
+    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   };
 
   return (
@@ -166,11 +171,13 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
           /* Messages List with date grouping */
           messages.map((message, index) => {
             const isMe = message.senderUid === user?.uid;
+            const currentLabel = getGroupedDateLabel(message.timestamp);
+            const previousLabel = index > 0 ? getGroupedDateLabel(messages[index - 1].timestamp) : '';
             
             // Determine if a date separator is needed
             const showDateSeparator =
               index === 0 ||
-              getGroupedDateLabel(messages[index - 1].timestamp) !== getGroupedDateLabel(message.timestamp);
+              previousLabel !== currentLabel;
 
             return (
               <React.Fragment key={message.id}>
@@ -185,19 +192,21 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
                     }}
                   >
                     <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', backgroundColor: 'var(--border-color)', zIndex: 1 }} />
-                    <span
-                      style={{
-                        position: 'relative',
-                        zIndex: 2,
-                        backgroundColor: 'var(--bg-surface)',
-                        padding: '0 0.75rem',
-                        fontSize: '0.75rem',
-                        color: 'var(--text-secondary)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {getGroupedDateLabel(message.timestamp)}
-                    </span>
+                    {currentLabel && (
+                      <span
+                        style={{
+                          position: 'relative',
+                          zIndex: 2,
+                          backgroundColor: 'var(--bg-surface)',
+                          padding: '0 0.75rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {currentLabel}
+                      </span>
+                    )}
                   </div>
                 )}
                 <ChatMessage message={message} isMe={isMe} />

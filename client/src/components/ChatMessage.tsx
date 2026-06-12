@@ -16,12 +16,9 @@ export default function ChatMessage({ message, isMe }: ChatMessageProps) {
 
   // Format timestamp (e.g., "3:45 PM")
   const formatTime = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-      return '';
-    }
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -110,16 +107,18 @@ export default function ChatMessage({ message, isMe }: ChatMessageProps) {
         </div>
 
         {/* Time under bubble */}
-        <span
-          style={{
-            fontSize: '0.7rem',
-            color: '#94a3b8', // text-gray-400
-            marginTop: '0.25rem',
-            padding: '0 0.25rem',
-          }}
-        >
-          {formatTime(timestamp)}
-        </span>
+        {formatTime(timestamp) && (
+          <span
+            style={{
+              fontSize: '0.7rem',
+              color: '#94a3b8', // text-gray-400
+              marginTop: '0.25rem',
+              padding: '0 0.25rem',
+            }}
+          >
+            {formatTime(timestamp)}
+          </span>
+        )}
       </div>
     </div>
   );

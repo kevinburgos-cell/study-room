@@ -14,6 +14,11 @@ export interface Message {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+const parseTimestamp = (timestamp: string) => {
+  const value = new Date(timestamp).getTime();
+  return Number.isNaN(value) ? Number.POSITIVE_INFINITY : value;
+};
+
 export function useChat(roomId: string | undefined) {
   const { firebaseUser } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,7 +52,7 @@ export function useChat(roomId: string | undefined) {
 
       const data = await response.json();
       const normalized = Array.isArray(data) ? data : [];
-      normalized.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      normalized.sort((a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp));
       setMessages(normalized);
     } catch (err: any) {
       console.error('Failed to load chat history:', err);
@@ -73,7 +78,7 @@ export function useChat(roomId: string | undefined) {
         // Avoid duplicate messages by checking id
         const exists = prev.some((m) => m.id === message.id);
         if (exists) return prev;
-        return [...prev, message].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        return [...prev, message].sort((a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp));
       });
     };
 
