@@ -50,6 +50,12 @@ function registerRoomHandlers(io, socket) {
                     photoURL,
                 })),
             });
+            // Emit existing peers list for WebRTC signaling
+            socket.emit('existing-peers', {
+                peers: connectedUsers[roomId]
+                    .filter(u => u.socketId !== socket.id)
+                    .map(u => ({ socketId: u.socketId, uid: u.uid, username: u.username }))
+            });
             console.log(`[Socket] User ${username} (${uid}) joined room ${roomId}`);
         }
         catch (err) {

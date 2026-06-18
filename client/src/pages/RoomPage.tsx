@@ -16,6 +16,11 @@ import { socket } from '../socket/socket';
 import { useSocket } from '../hooks/useSocket';
 import { useRoomUsers } from '../hooks/useRoomUsers';
 
+// WebRTC & UI components
+import { useWebRTC } from '../hooks/useWebRTC';
+import VideoGrid from '../components/VideoGrid';
+import PermissionErrorPanel from '../components/PermissionErrorPanel';
+
 export default function RoomPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -135,6 +140,19 @@ export default function RoomPage() {
     }
   };
 
+  // WebRTC hook integration
+  const {
+    localStream,
+    peers,
+    permissionError,
+    isMuted,
+    isCameraOff,
+    toggleMic,
+    toggleCamera,
+    retryPermissions,
+    continueWithoutVideo,
+  } = useWebRTC(id, onlineUsers);
+
   if (loadingRoom || !room) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)' }}>
@@ -148,7 +166,7 @@ export default function RoomPage() {
   const isHost = room.hostUid === user?.uid;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', overflow: 'hidden' }}>
       
       {/* Realtime Reconnecting Banner */}
       {showReconnectingBanner && (
@@ -165,7 +183,7 @@ export default function RoomPage() {
       )}
 
       {/* Header Navigation Navbar */}
-      <nav className="room-topbar" style={{ borderRadius: 0 }} aria-label="Menú superior de la sala">
+      <nav className="room-topbar" style={{ borderRadius: 0, flexShrink: 0 }} aria-label="Menú superior de la sala">
         <div className="room-topbar-inner">
           <button 
             onClick={handleExitClick}
@@ -224,8 +242,8 @@ export default function RoomPage() {
         </div>
       </nav>
 
-      {/* Main Layout containing Sidebar and Work Area */}
-      <div style={{ display: 'flex', flexGrow: 1, height: 'calc(100vh - 73px)', overflow: 'hidden' }}>
+      {/* Main Layout containing Sidebar, Video Area, and Chat */}
+      <div style={{ display: 'flex', flexGrow: 1, overflow: 'hidden', minHeight: 0 }}>
         
         {/* Left Sidebar of Members (connected in real-time) */}
         <MembersSidebar
@@ -249,33 +267,136 @@ export default function RoomPage() {
           aria-label="Áreas de trabajo"
         >
           
-          {/* Main Area: Video Placeholder */}
+          {/* Main Area: Video Grid or Permission screen */}
           <section 
             style={{ 
-              padding: '2.5rem', 
               display: 'flex', 
               flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center',
               borderRight: '1px solid var(--border-color)',
               minHeight: 0,
-              textAlign: 'center'
+              overflow: 'hidden',
+              backgroundColor: '#0a0f1d'
             }}
-            aria-labelledby="video-placeholder-heading"
+            aria-label="Cuadrícula de Video"
           >
-            <div style={{ fontSize: '5rem', marginBottom: '1.5rem', opacity: 0.8 }} role="img" aria-label="Cámara de video">📹</div>
-            <h2 id="video-placeholder-heading" style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              Las videollamadas estarán disponibles pronto
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '450px' }}>
-              En el Sprint 4 implementaremos videollamadas grupales. Por ahora puedes usar el chat para comunicarte con tus compañeros.
-            </p>
+            {permissionError ? (
+              <PermissionErrorPanel
+                errorType={permissionError}
+                onRetry={retryPermissions}
+                onContinueWithoutVideo={continueWithoutVideo}
+              />
+            ) : (
+              <VideoGrid
+                localStream={localStream}
+                localUser={{
+                  uid: user?.uid || '',
+                  username: user?.username || 'Tú',
+                  photoURL: user?.photoURL || null,
+                }}
+                peers={peers}
+                isLocalMuted={isMuted}
+                isLocalCameraOff={isCameraOff}
+              />
+            )}
           </section>
 
           {/* Chat Panel */}
           <ChatPanel roomId={room.id} />
 
         </main>
+      </div>
+
+      {/* Bottom Controls Bar */}
+      <div 
+        style={{
+          height: '70px',
+          backgroundColor: '#1e293b',
+          borderTop: '1px solid #334155',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          padding: '0 1.5rem',
+          flexShrink: 0,
+          zIndex: 50,
+        }}
+      >
+        <button
+          onClick={toggleMic}
+          className="btn-secondary interactive-element"
+          style={{
+            width: 'auto',
+            minHeight: 'auto',
+            padding: '0.5rem 1.25rem',
+            backgroundColor: isMuted ? 'rgba(239, 68, 68, 0.9)' : 'var(--bg-tertiary)',
+            color: '#ffffff',
+            borderColor: isMuted ? 'transparent' : '#334155',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 500,
+          }}
+        >
+          <span>{isMuted ? '🎙️❌ Silenciado' : '🎤 Micrófono'}</span>
+        </button>
+
+        <button
+          onClick={toggleCamera}
+          className="btn-secondary interactive-element"
+          style={{
+            width: 'auto',
+            minHeight: 'auto',
+            padding: '0.5rem 1.25rem',
+            backgroundColor: isCameraOff ? 'rgba(239, 68, 68, 0.9)' : 'var(--bg-tertiary)',
+            color: '#ffffff',
+            borderColor: isCameraOff ? 'transparent' : '#334155',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 500,
+          }}
+        >
+          <span>{isCameraOff ? '📷❌ Cámara Apagada' : '📷 Cámara'}</span>
+        </button>
+
+        <button
+          className="btn-secondary interactive-element"
+          style={{
+            width: 'auto',
+            minHeight: 'auto',
+            padding: '0.5rem 1.25rem',
+            color: '#94a3b8',
+            borderColor: '#334155',
+            opacity: 0.6,
+            cursor: 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+          title="Próximamente en Sprint 5"
+          disabled
+        >
+          <span>🖥️ Compartir</span>
+        </button>
+
+        <button
+          onClick={handleExitClick}
+          className="btn-secondary interactive-element"
+          style={{
+            width: 'auto',
+            minHeight: 'auto',
+            padding: '0.5rem 1.5rem',
+            backgroundColor: 'var(--color-danger)',
+            color: '#ffffff',
+            borderColor: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 600,
+          }}
+        >
+          <span>🚪 Salir</span>
+        </button>
       </div>
 
       {/* Host Edit Modal */}
