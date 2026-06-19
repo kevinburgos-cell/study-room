@@ -4,7 +4,7 @@ import VideoTile from './VideoTile';
 interface VideoGridProps {
   localStream: MediaStream | null;
   localUser: { uid: string; username: string; photoURL?: string | null };
-  peers: Map<string, { stream: MediaStream; uid: string; username: string }>;
+  peers: Map<string, { stream: MediaStream; uid: string; username: string; isMuted: boolean; isCameraOff: boolean }>;
   isLocalMuted?: boolean;
   isLocalCameraOff?: boolean;
 }
@@ -132,8 +132,8 @@ export default function VideoGrid({
                 stream={peerInfo.stream}
                 username={peerInfo.username}
                 isLocal={false}
-                isMuted={false} // Handled remotely or fallback
-                isCameraOff={false} // Handled by remote stream track state
+                isMuted={peerInfo.isMuted}
+                isCameraOff={peerInfo.isCameraOff}
               />
             </div>
           );

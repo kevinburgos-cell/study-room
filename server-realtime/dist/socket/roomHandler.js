@@ -24,6 +24,8 @@ function registerRoomHandlers(io, socket) {
             // Save socket metadata for automatic cleanup
             socket.roomId = roomId;
             socket.uid = uid;
+            socket.isMuted = false;
+            socket.isCameraOff = false;
             if (!connectedUsers[roomId]) {
                 connectedUsers[roomId] = [];
             }
@@ -52,7 +54,16 @@ function registerRoomHandlers(io, socket) {
             });
             const peersList = connectedUsers[roomId]
                 .filter(u => u.socketId !== socket.id)
-                .map(u => ({ socketId: u.socketId, uid: u.uid, username: u.username }));
+                .map(u => {
+                const peerSocket = io.sockets.sockets.get(u.socketId);
+                return {
+                    socketId: u.socketId,
+                    uid: u.uid,
+                    username: u.username,
+                    isMuted: Boolean(peerSocket?.isMuted),
+                    isCameraOff: Boolean(peerSocket?.isCameraOff),
+                };
+            });
             console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}. Found ${peersList.length} existing peers.`);
             console.log('[Socket-Room] Emitting existing-peers list:', JSON.stringify(peersList));
             // Emit existing peers list for WebRTC signaling
@@ -87,6 +98,8 @@ function registerRoomHandlers(io, socket) {
         }
         delete socket.roomId;
         delete socket.uid;
+        delete socket.isMuted;
+        delete socket.isCameraOff;
     });
     // 3. Delete Room Event
     socket.on('delete-room', (payload) => {

@@ -10,6 +10,13 @@ interface PeerInfo {
   stream: MediaStream;
   uid: string;
   username: string;
+  isMuted: boolean;
+  isCameraOff: boolean;
+}
+
+interface MediaState {
+  isMuted: boolean;
+  isCameraOff: boolean;
 }
 
 export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string; username: string }[]) {
@@ -23,6 +30,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   // All mutable state that event handlers need lives in refs
   // so socket listeners never need to be recreated
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const remoteMediaStatesRef = useRef<Map<string, MediaState>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const onlineUsersRef = useRef(onlineUsers);
   const permissionErrorRef = useRef<string | null>(null);
@@ -41,6 +49,33 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     roomIdRef.current = roomId;
   }, [roomId]);
 
+  const emitMediaState = useCallback((nextState: MediaState) => {
+    if (!roomIdRef.current || !socket.connected) return;
+
+    socket.emit('webrtc-media-state', {
+      roomId: roomIdRef.current,
+      ...nextState,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const publishCurrentMediaState = () => {
+      emitMediaState({ isMuted, isCameraOff });
+    };
+
+    if (socket.connected) {
+      publishCurrentMediaState();
+    }
+
+    socket.on('connect', publishCurrentMediaState);
+
+    return () => {
+      socket.off('connect', publishCurrentMediaState);
+    };
+  }, [roomId, isMuted, isCameraOff, emitMediaState]);
+
   // Remove a peer connection cleanly
   const closeConnection = useCallback((socketId: string) => {
     const pc = peerConnectionsRef.current.get(socketId);
@@ -48,6 +83,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       pc.close();
       peerConnectionsRef.current.delete(socketId);
     }
+    remoteMediaStatesRef.current.delete(socketId);
     setPeers((prev) => {
       const next = new Map(prev);
       next.delete(socketId);
@@ -68,10 +104,15 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         video: withVideo,
         audio: withAudio,
       });
+      const nextState = {
+        isMuted: !withAudio,
+        isCameraOff: !withVideo,
+      };
       localStreamRef.current = stream;
       setLocalStream(stream);
-      setIsCameraOff(!withVideo);
-      setIsMuted(!withAudio);
+      setIsCameraOff(nextState.isCameraOff);
+      setIsMuted(nextState.isMuted);
+      emitMediaState(nextState);
       setIsConnecting(false);
       return stream;
     } catch (err: any) {
@@ -89,7 +130,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       permissionErrorRef.current = errType;
       return null;
     }
-  }, []);
+  }, [emitMediaState]);
 
   // Create an RTCPeerConnection — stream can be null for receive-only
   const createPeerConnection = useCallback(
@@ -126,8 +167,17 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         const remoteStream = event.streams[0] || new MediaStream([event.track]);
         console.log(`[useWebRTC] ✅ Remote track received from ${peerUsername} — stream: ${remoteStream.id}`);
         setPeers((prev) => {
+          const mediaState = remoteMediaStatesRef.current.get(targetSocketId) ?? {
+            isMuted: false,
+            isCameraOff: false,
+          };
           const next = new Map(prev);
-          next.set(targetSocketId, { stream: remoteStream, uid: peerUid, username: peerUsername });
+          next.set(targetSocketId, {
+            stream: remoteStream,
+            uid: peerUid,
+            username: peerUsername,
+            ...mediaState,
+          });
           return next;
         });
       };
@@ -161,7 +211,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     console.log(`[useWebRTC] Setting up signaling listeners for room: ${roomId}`);
 
     const handleExistingPeers = async (payload: {
-      peers: { socketId: string; uid: string; username: string }[];
+      peers: { socketId: string; uid: string; username: string; isMuted?: boolean; isCameraOff?: boolean }[];
     }) => {
       console.log('[useWebRTC] existing-peers received:', JSON.stringify(payload.peers));
 
@@ -175,6 +225,10 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
 
       for (const peer of payload.peers) {
         try {
+          remoteMediaStatesRef.current.set(peer.socketId, {
+            isMuted: Boolean(peer.isMuted),
+            isCameraOff: Boolean(peer.isCameraOff),
+          });
           console.log(`[useWebRTC] Creating offer for ${peer.username} (${peer.socketId})`);
           const pc = createPeerConnection(peer.socketId, peer.uid, peer.username, stream);
           const offer = await pc.createOffer();
@@ -258,6 +312,30 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       }
     };
 
+    const handleMediaState = (payload: {
+      fromSocketId: string;
+      isMuted: boolean;
+      isCameraOff: boolean;
+    }) => {
+      const nextState = {
+        isMuted: payload.isMuted,
+        isCameraOff: payload.isCameraOff,
+      };
+
+      remoteMediaStatesRef.current.set(payload.fromSocketId, nextState);
+      setPeers((prev) => {
+        const peer = prev.get(payload.fromSocketId);
+        if (!peer) return prev;
+
+        const next = new Map(prev);
+        next.set(payload.fromSocketId, {
+          ...peer,
+          ...nextState,
+        });
+        return next;
+      });
+    };
+
     const handleUserLeft = (payload: { uid: string; username: string }) => {
       console.log(`[useWebRTC] User left: ${payload.username}`);
       // Search by uid across all peer connections
@@ -268,6 +346,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
           if (info && info.uid === payload.uid) {
             pc.close();
             peerConnectionsRef.current.delete(socketId);
+            remoteMediaStatesRef.current.delete(socketId);
             const next = new Map(prev);
             next.delete(socketId);
             return next;
@@ -281,6 +360,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     socket.on('webrtc-offer', handleOffer);
     socket.on('webrtc-answer', handleAnswer);
     socket.on('webrtc-ice-candidate', handleIceCandidate);
+    socket.on('webrtc-media-state', handleMediaState);
     socket.on('user-left', handleUserLeft);
 
     return () => {
@@ -289,6 +369,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       socket.off('webrtc-offer', handleOffer);
       socket.off('webrtc-answer', handleAnswer);
       socket.off('webrtc-ice-candidate', handleIceCandidate);
+      socket.off('webrtc-media-state', handleMediaState);
       socket.off('user-left', handleUserLeft);
     };
   }, [roomId, createPeerConnection, initLocalStream]); // ← NO peers here
@@ -303,6 +384,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       }
       peerConnectionsRef.current.forEach((pc) => pc.close());
       peerConnectionsRef.current.clear();
+      remoteMediaStatesRef.current.clear();
       setPeers(new Map());
     };
   }, []); // Run once
@@ -312,17 +394,27 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     const track = localStreamRef.current?.getAudioTracks()[0];
     if (track) {
       track.enabled = !track.enabled;
-      setIsMuted(!track.enabled);
+      const nextState = {
+        isMuted: !track.enabled,
+        isCameraOff,
+      };
+      setIsMuted(nextState.isMuted);
+      emitMediaState(nextState);
     }
-  }, []);
+  }, [emitMediaState, isCameraOff]);
 
   const toggleCamera = useCallback(() => {
     const track = localStreamRef.current?.getVideoTracks()[0];
     if (track) {
       track.enabled = !track.enabled;
-      setIsCameraOff(!track.enabled);
+      const nextState = {
+        isMuted,
+        isCameraOff: !track.enabled,
+      };
+      setIsCameraOff(nextState.isCameraOff);
+      emitMediaState(nextState);
     }
-  }, []);
+  }, [emitMediaState, isMuted]);
 
   const retryPermissions = useCallback(async () => {
     await initLocalStream(true, true);

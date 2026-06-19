@@ -31,6 +31,8 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
       // Save socket metadata for automatic cleanup
       (socket as any).roomId = roomId;
       (socket as any).uid = uid;
+      (socket as any).isMuted = false;
+      (socket as any).isCameraOff = false;
 
       if (!connectedUsers[roomId]) {
         connectedUsers[roomId] = [];
@@ -66,7 +68,16 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
 
       const peersList = connectedUsers[roomId]
         .filter(u => u.socketId !== socket.id)
-        .map(u => ({ socketId: u.socketId, uid: u.uid, username: u.username }));
+        .map(u => {
+          const peerSocket = io.sockets.sockets.get(u.socketId);
+          return {
+            socketId: u.socketId,
+            uid: u.uid,
+            username: u.username,
+            isMuted: Boolean((peerSocket as any)?.isMuted),
+            isCameraOff: Boolean((peerSocket as any)?.isCameraOff),
+          };
+        });
 
       console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}. Found ${peersList.length} existing peers.`);
       console.log('[Socket-Room] Emitting existing-peers list:', JSON.stringify(peersList));
@@ -108,6 +119,8 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
 
     delete (socket as any).roomId;
     delete (socket as any).uid;
+    delete (socket as any).isMuted;
+    delete (socket as any).isCameraOff;
   });
 
   // 3. Delete Room Event

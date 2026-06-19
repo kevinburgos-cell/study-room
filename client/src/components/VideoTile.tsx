@@ -37,7 +37,8 @@ export default function VideoTile({
     ? username.slice(0, 2).toUpperCase()
     : 'U';
 
-  const hasVideoTrack = stream && stream.getVideoTracks().length > 0 && !isCameraOff;
+  const videoTrack = stream?.getVideoTracks()[0];
+  const hasVideoTrack = Boolean(videoTrack && videoTrack.readyState === 'live' && !isCameraOff);
 
   return (
     <div 
