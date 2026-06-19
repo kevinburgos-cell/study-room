@@ -50,13 +50,15 @@ function registerRoomHandlers(io, socket) {
                     photoURL,
                 })),
             });
+            const peersList = connectedUsers[roomId]
+                .filter(u => u.socketId !== socket.id)
+                .map(u => ({ socketId: u.socketId, uid: u.uid, username: u.username }));
+            console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}. Found ${peersList.length} existing peers.`);
+            console.log('[Socket-Room] Emitting existing-peers list:', JSON.stringify(peersList));
             // Emit existing peers list for WebRTC signaling
             socket.emit('existing-peers', {
-                peers: connectedUsers[roomId]
-                    .filter(u => u.socketId !== socket.id)
-                    .map(u => ({ socketId: u.socketId, uid: u.uid, username: u.username }))
+                peers: peersList
             });
-            console.log(`[Socket] User ${username} (${uid}) joined room ${roomId}`);
         }
         catch (err) {
             socket.emit('error', { message: err.message || 'Error al unirse a la sala' });
