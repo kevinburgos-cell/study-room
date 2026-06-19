@@ -86,7 +86,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   }, []);
 
   // Helper to create RTCPeerConnection
-  const createPeerConnection = useCallback((targetSocketId: string, peerUid: string, peerUsername: string, stream: MediaStream) => {
+  const createPeerConnection = useCallback((targetSocketId: string, peerUid: string, peerUsername: string, stream: MediaStream | null) => {
     if (peerConnections.current.has(targetSocketId)) {
       closeConnection(targetSocketId);
     }
@@ -94,10 +94,15 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     peerConnections.current.set(targetSocketId, pc);
 
-    // Add local tracks
-    stream.getTracks().forEach((track) => {
-      pc.addTrack(track, stream);
-    });
+    // Add local tracks if stream is available
+    if (stream) {
+      console.log(`[useWebRTC] Adding local tracks to peer connection for ${peerUsername}`);
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+    } else {
+      console.log(`[useWebRTC] Creating peer connection for ${peerUsername} in receive-only mode (no local tracks)`);
+    }
 
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
@@ -113,6 +118,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     // Handle remote track
     pc.ontrack = (event) => {
       const remoteStream = event.streams[0] || new MediaStream([event.track]);
+      console.log(`[useWebRTC] Received remote track from ${peerUsername}. Stream ID: ${remoteStream.id}`);
       setPeers((prev) => {
         const next = new Map(prev);
         next.set(targetSocketId, {
@@ -126,6 +132,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
 
     // Connection state handler
     pc.onconnectionstatechange = () => {
+      console.log(`[useWebRTC] Connection state change for ${peerUsername}: ${pc.connectionState}`);
       if (
         pc.connectionState === 'disconnected' ||
         pc.connectionState === 'failed' ||
@@ -154,9 +161,9 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         console.log('[useWebRTC] No local stream found on existing-peers, initializing stream...');
         stream = await initLocalStream();
       }
+      
       if (!stream) {
-        console.error('[useWebRTC] Failed to obtain local stream, cannot negotiate WebRTC');
-        return;
+        console.warn('[useWebRTC] No local stream available, proceeding in receive-only mode');
       }
 
       console.log(`[useWebRTC] Starting WebRTC negotiation with ${payload.peers.length} peers`);
@@ -188,10 +195,6 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       if (!stream && !permissionError) {
         console.log('[useWebRTC] No local stream found on webrtc-offer, initializing stream...');
         stream = await initLocalStream();
-      }
-      if (!stream) {
-        console.error('[useWebRTC] Failed to obtain local stream, cannot handle WebRTC offer');
-        return;
       }
 
       try {
