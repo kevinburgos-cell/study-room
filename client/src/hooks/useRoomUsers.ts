@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { socket } from '../socket/socket';
 import { RoomMember } from '../types/room.types';
 
@@ -10,32 +10,47 @@ interface UseRoomUsersOptions {
 
 export function useRoomUsers(options?: UseRoomUsersOptions) {
   const [onlineUsers, setOnlineUsers] = useState<RoomMember[]>([]);
+  const optionsRef = useRef(options);
+
+  // Keep options up to date without triggering useEffect
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   useEffect(() => {
+    console.log('[useRoomUsers] Registering socket listeners for online users list');
+
     const onRoomUsers = (payload: { users: RoomMember[] }) => {
+      console.log('[useRoomUsers] Received "room-users" list:', JSON.stringify(payload.users));
       setOnlineUsers(payload.users);
     };
 
     const onUserJoined = (user: RoomMember) => {
+      console.log('[useRoomUsers] Received "user-joined" event for:', JSON.stringify(user));
       setOnlineUsers((prev) => {
-        if (prev.some((u) => u.uid === user.uid)) return prev;
+        if (prev.some((u) => u.uid === user.uid)) {
+          console.log(`[useRoomUsers] User ${user.username} already in online list, skipping duplicate`);
+          return prev;
+        }
         return [...prev, user];
       });
-      if (options?.onUserJoined) {
-        options.onUserJoined(user.username);
+      if (optionsRef.current?.onUserJoined) {
+        optionsRef.current.onUserJoined(user.username);
       }
     };
 
     const onUserLeft = (user: { uid: string; username: string }) => {
+      console.log('[useRoomUsers] Received "user-left" event for:', JSON.stringify(user));
       setOnlineUsers((prev) => prev.filter((u) => u.uid !== user.uid));
-      if (options?.onUserLeft) {
-        options.onUserLeft(user.username);
+      if (optionsRef.current?.onUserLeft) {
+        optionsRef.current.onUserLeft(user.username);
       }
     };
 
     const onError = (payload: { message: string }) => {
-      if (options?.onError) {
-        options.onError(payload.message);
+      console.error('[useRoomUsers] Received socket "error" event:', payload.message);
+      if (optionsRef.current?.onError) {
+        optionsRef.current.onError(payload.message);
       }
     };
 
@@ -45,12 +60,13 @@ export function useRoomUsers(options?: UseRoomUsersOptions) {
     socket.on('error', onError);
 
     return () => {
+      console.log('[useRoomUsers] Cleaning up socket listeners');
       socket.off('room-users', onRoomUsers);
       socket.off('user-joined', onUserJoined);
       socket.off('user-left', onUserLeft);
       socket.off('error', onError);
     };
-  }, [options]);
+  }, []); // Run only once on mount
 
   return onlineUsers;
 }
