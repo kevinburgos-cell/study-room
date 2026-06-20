@@ -164,6 +164,8 @@ export default function RoomPage() {
   }
 
   const isHost = room.hostUid === user?.uid;
+  const isMissingMediaDevice = permissionError === 'NotFoundError';
+  const shouldShowPermissionPanel = Boolean(permissionError && !isMissingMediaDevice);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', overflow: 'hidden' }}>
@@ -279,14 +281,45 @@ export default function RoomPage() {
             }}
             aria-label="Cuadrícula de Video"
           >
-            {permissionError ? (
+            {shouldShowPermissionPanel ? (
               <PermissionErrorPanel
-                errorType={permissionError}
+                errorType={permissionError || 'UnknownError'}
                 onRetry={retryPermissions}
                 onContinueWithoutVideo={continueWithoutVideo}
               />
             ) : (
-              <VideoGrid
+              <div style={{ position: 'relative', flex: '1 1 0', minHeight: 0 }}>
+                {isMissingMediaDevice && (
+                  <div
+                    role="status"
+                    style={{
+                      position: 'absolute',
+                      top: '1rem',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      zIndex: 20,
+                      maxWidth: 'min(560px, calc(100% - 2rem))',
+                      width: 'max-content',
+                      backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                      border: '1px solid rgba(245, 158, 11, 0.45)',
+                      color: '#f8fafc',
+                      borderRadius: '8px',
+                      padding: '0.75rem 1rem',
+                      boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.4,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <strong style={{ display: 'block', marginBottom: '0.2rem' }}>
+                      No se encontró cámara o micrófono en este dispositivo
+                    </strong>
+                    <span style={{ color: '#cbd5e1' }}>
+                      Entraste como espectador: puedes ver a los demás y usar el chat.
+                    </span>
+                  </div>
+                )}
+                <VideoGrid
                 localStream={localStream}
                 localUser={{
                   uid: user?.uid || '',
@@ -295,8 +328,9 @@ export default function RoomPage() {
                 }}
                 peers={peers}
                 isLocalMuted={isMuted}
-                isLocalCameraOff={isCameraOff}
+                isLocalCameraOff={isCameraOff || isMissingMediaDevice}
               />
+              </div>
             )}
           </section>
 

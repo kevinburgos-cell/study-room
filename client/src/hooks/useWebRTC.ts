@@ -128,6 +128,12 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
           : err.message || 'UnknownError';
       setPermissionError(errType);
       permissionErrorRef.current = errType;
+      if (errType === 'NotFoundError') {
+        const spectatorState = { isMuted: true, isCameraOff: true };
+        setIsMuted(spectatorState.isMuted);
+        setIsCameraOff(spectatorState.isCameraOff);
+        emitMediaState(spectatorState);
+      }
       return null;
     }
   }, [emitMediaState]);
