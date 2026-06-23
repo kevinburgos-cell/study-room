@@ -5,6 +5,23 @@ const verifyToken_1 = require("../middlewares/verifyToken");
 // In-memory storage for users in each room
 const connectedUsers = {};
 function registerRoomHandlers(io, socket) {
+    const emitExistingPeers = (roomId) => {
+        const peersList = connectedUsers[roomId]
+            .filter((u) => u.socketId !== socket.id)
+            .map((u) => {
+            const peerSocket = io.sockets.sockets.get(u.socketId);
+            return {
+                socketId: u.socketId,
+                uid: u.uid,
+                username: u.username,
+                audioEnabled: Boolean(peerSocket?.audioEnabled ?? true),
+                videoEnabled: Boolean(peerSocket?.videoEnabled ?? true),
+                isScreenSharing: Boolean(peerSocket?.isScreenSharing),
+            };
+        });
+        console.log(`[Socket-Room] Emitting existing-peers list for ${socket.id}:`, JSON.stringify(peersList));
+        socket.emit('existing-peers', { peers: peersList });
+    };
     // 1. Join Room Event
     socket.on('join-room', async (payload) => {
         const { roomId, token } = payload;
@@ -22,10 +39,13 @@ function registerRoomHandlers(io, socket) {
             // Join room in Socket.io
             socket.join(roomId);
             // Save socket metadata for automatic cleanup
-            socket.roomId = roomId;
-            socket.uid = uid;
-            socket.isMuted = false;
-            socket.isCameraOff = false;
+            socket.data.roomId = roomId;
+            socket.data.uid = uid;
+            socket.data.username = username;
+            socket.data.photoURL = photoURL;
+            socket.data.audioEnabled = true;
+            socket.data.videoEnabled = true;
+            socket.data.isScreenSharing = false;
             if (!connectedUsers[roomId]) {
                 connectedUsers[roomId] = [];
             }
@@ -52,28 +72,28 @@ function registerRoomHandlers(io, socket) {
                     photoURL,
                 })),
             });
-            const peersList = connectedUsers[roomId]
-                .filter(u => u.socketId !== socket.id)
-                .map(u => {
-                const peerSocket = io.sockets.sockets.get(u.socketId);
-                return {
-                    socketId: u.socketId,
-                    uid: u.uid,
-                    username: u.username,
-                    isMuted: Boolean(peerSocket?.isMuted),
-                    isCameraOff: Boolean(peerSocket?.isCameraOff),
-                };
-            });
-            console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}. Found ${peersList.length} existing peers.`);
-            console.log('[Socket-Room] Emitting existing-peers list:', JSON.stringify(peersList));
-            // Emit existing peers list for WebRTC signaling
-            socket.emit('existing-peers', {
-                peers: peersList
-            });
+            console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}.`);
+            // Emit existing peers list after a short delay to reduce WebRTC race conditions
+            setTimeout(() => {
+                emitExistingPeers(roomId);
+            }, 500);
         }
         catch (err) {
             socket.emit('error', { message: err.message || 'Error al unirse a la sala' });
         }
+    });
+    socket.on('request-rejoin', (payload) => {
+        const { roomId } = payload;
+        if (!roomId)
+            return;
+        setTimeout(() => {
+            if (socket.connected && connectedUsers[roomId]?.some((u) => u.socketId !== socket.id)) {
+                emitExistingPeers(roomId);
+            }
+            else if (socket.connected && connectedUsers[roomId]) {
+                emitExistingPeers(roomId);
+            }
+        }, 500);
     });
     // 2. Leave Room Event
     socket.on('leave-room', (payload) => {
@@ -96,10 +116,13 @@ function registerRoomHandlers(io, socket) {
                 delete connectedUsers[roomId];
             }
         }
-        delete socket.roomId;
-        delete socket.uid;
-        delete socket.isMuted;
-        delete socket.isCameraOff;
+        delete socket.data.roomId;
+        delete socket.data.uid;
+        delete socket.data.username;
+        delete socket.data.photoURL;
+        delete socket.data.audioEnabled;
+        delete socket.data.videoEnabled;
+        delete socket.data.isScreenSharing;
     });
     // 3. Delete Room Event
     socket.on('delete-room', (payload) => {
@@ -126,6 +149,15 @@ function registerRoomHandlers(io, socket) {
                     delete connectedUsers[roomId];
                 }
             }
+        }
+    });
+    socket.on('heartbeat', (payload) => {
+        if (payload?.roomId) {
+            socket.emit('heartbeat-ack', {
+                timestamp: Date.now(),
+                roomId: payload.roomId,
+                uid: payload.uid ?? socket.data.uid ?? null,
+            });
         }
     });
 }

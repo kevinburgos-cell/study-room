@@ -39,18 +39,4 @@ export function registerWebRTCHandlers(io: Server, socket: Socket) {
     });
   });
 
-  // 4. Broadcast media state changes (mic/camera) to all other peers in the room
-  socket.on('webrtc-media-state', (payload: { roomId: string; isMuted: boolean; isCameraOff: boolean }) => {
-    const { roomId, isMuted, isCameraOff } = payload;
-    (socket as any).isMuted = isMuted;
-    (socket as any).isCameraOff = isCameraOff;
-
-    console.log(`[Socket-WebRTC] Media state from ${socket.id} in room ${roomId}: muted=${isMuted}, cameraOff=${isCameraOff}`);
-    // Broadcast to everyone else in the room (not the sender)
-    socket.to(roomId).emit('webrtc-media-state', {
-      fromSocketId: socket.id,
-      isMuted,
-      isCameraOff,
-    });
-  });
 }

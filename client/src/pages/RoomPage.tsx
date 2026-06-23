@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -11,15 +11,82 @@ import DeleteRoomModal from '../components/modals/DeleteRoomModal';
 import Toast from '../components/Toast';
 import ChatPanel from '../components/ChatPanel';
 import { socket } from '../socket/socket';
-
-// Sockets hooks imports
 import { useSocket } from '../hooks/useSocket';
 import { useRoomUsers } from '../hooks/useRoomUsers';
-
-// WebRTC & UI components
 import { useWebRTC } from '../hooks/useWebRTC';
 import VideoGrid from '../components/VideoGrid';
 import PermissionErrorPanel from '../components/PermissionErrorPanel';
+import { usePeerMediaState } from '../hooks/usePeerMediaState';
+
+type MobileTab = 'video' | 'people' | 'chat';
+
+function IconMic({ muted }: { muted: boolean }) {
+  return muted ? (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v6a3 3 0 0 0 5.2 2.1" />
+      <path d="M19 11a7 7 0 0 1-7 7m-4-1a7 7 0 0 0 11-6" />
+      <path d="M1 1l22 22" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 11a7 7 0 0 1-14 0" />
+      <path d="M12 18v4" />
+      <path d="M8 22h8" />
+    </svg>
+  );
+}
+
+function IconCamera({ off }: { off: boolean }) {
+  return off ? (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 1l22 22" />
+      <path d="M15 8l5-3v14l-5-3" />
+      <rect x="3" y="6" width="12" height="12" rx="2" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="6" width="12" height="12" rx="2" />
+      <path d="M15 10l5-3v10l-5-3" />
+    </svg>
+  );
+}
+
+function IconScreen({ active }: { active: boolean }) {
+  return active ? (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8" />
+      <path d="M12 16v4" />
+      <path d="M8 9l2 2 4-4" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8" />
+      <path d="M12 16v4" />
+    </svg>
+  );
+}
+
+function IconPeople() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function IconChat() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+    </svg>
+  );
+}
 
 export default function RoomPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,101 +95,111 @@ export default function RoomPage() {
 
   const [room, setRoom] = useState<Room | null>(null);
   const [loadingRoom, setLoadingRoom] = useState(true);
-
-  // Modal and dialog states
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [isDeletedModalOpen, setIsDeletedModalOpen] = useState(false);
-  
-  // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [activeTab, setActiveTab] = useState<MobileTab>('video');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
-  // Listen for room-deleted event from socket
   useEffect(() => {
-    const handleRoomDeleted = () => {
-      setIsDeletedModalOpen(true);
-    };
-
+    const handleRoomDeleted = () => setIsDeletedModalOpen(true);
     socket.on('room-deleted', handleRoomDeleted);
-
     return () => {
       socket.off('room-deleted', handleRoomDeleted);
     };
   }, []);
 
-  // Firestore subscription to check authorization and get host info
   useEffect(() => {
     if (!id || !user) return;
-
     setLoadingRoom(true);
     const roomRef = doc(db, 'rooms', id);
-
-    const unsubscribe = onSnapshot(
-      roomRef,
-      (docSnap) => {
-        if (!docSnap.exists()) {
-          console.error('Room does not exist');
-          navigate('/dashboard', { state: { successMessage: 'La sala ya no existe o fue eliminada.' } });
-          return;
-        }
-
-        const roomData = { id: docSnap.id, ...docSnap.data() } as Room;
-        
-        // Security Check: Verify user membership or host
-        const isHost = roomData.hostUid === user.uid;
-        const isMember = roomData.members.some((m) => m.uid === user.uid);
-
-        if (!isHost && !isMember) {
-          console.error('Security Check: User is not a member of this room');
-          navigate('/dashboard');
-          return;
-        }
-
-        setRoom(roomData);
-        setLoadingRoom(false);
-      },
-      (err) => {
-        console.error('Error fetching room detail:', err);
-        navigate('/dashboard');
+    const unsubscribe = onSnapshot(roomRef, (docSnap) => {
+      if (!docSnap.exists()) {
+        navigate('/dashboard', { state: { successMessage: 'La sala ya no existe o fue eliminada.' } });
+        return;
       }
-    );
-
+      const roomData = { id: docSnap.id, ...docSnap.data() } as Room;
+      const isHost = roomData.hostUid === user.uid;
+      const isMember = roomData.members.some((m) => m.uid === user.uid);
+      if (!isHost && !isMember) {
+        navigate('/dashboard');
+        return;
+      }
+      setRoom(roomData);
+      setLoadingRoom(false);
+    });
     return () => unsubscribe();
   }, [id, user, navigate]);
 
-  // Connect to the WebSockets realtime server for this room
   const { isConnected, isConnecting, showReconnectingBanner, showConnectedSuccess } = useSocket(id);
-
-  // Get active online users in real-time and bind events for notifications
   const onlineUsers = useRoomUsers({
-    onUserJoined: (username) => {
-      setToast({ message: `¡${username} se unió a la sala!`, type: 'success' });
-    },
-    onUserLeft: (username) => {
-      setToast({ message: `${username} salió de la sala.`, type: 'success' });
-    },
+    onUserJoined: (username) => setToast({ message: `¡${username} se unió a la sala!`, type: 'success' }),
+    onUserLeft: (username) => setToast({ message: `${username} salió de la sala.`, type: 'success' }),
     onError: (errorMessage) => {
       setToast({ message: `Error en tiempo real: ${errorMessage}`, type: 'error' });
-      // If the authentication token was invalid, force redirect to login
       if (errorMessage.toLowerCase().includes('token')) {
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        setTimeout(() => navigate('/login'), 2000);
       }
-    }
+    },
   });
+
+  const {
+    localStream,
+    peers,
+    permissionError,
+    isAudioEnabled,
+    isVideoEnabled,
+    isScreenSharing,
+    toggleAudio,
+    toggleVideo,
+    startScreenShare,
+    stopScreenShare,
+    retryPermissions,
+    continueWithoutVideo,
+  } = useWebRTC(id, onlineUsers);
+
+  const peerMediaStates = usePeerMediaState();
+
+  useEffect(() => {
+    const handleNewMessage = () => {
+      if (activeTab !== 'chat') {
+        setUnreadChatCount((count) => count + 1);
+      }
+    };
+    socket.on('new-message', handleNewMessage);
+    return () => {
+      socket.off('new-message', handleNewMessage);
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setUnreadChatCount(0);
+    }
+  }, [activeTab]);
+
+  const hasMountedRoom = useMemo(() => Boolean(room && user), [room, user]);
+
+  if (loadingRoom || !hasMountedRoom) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)' }}>
+        <div className="skeleton-pulse" style={{ fontSize: '1.25rem', color: 'var(--text-secondary)' }}>
+          Cargando sala de estudio...
+        </div>
+      </div>
+    );
+  }
+
+  const isHost = room!.hostUid === user!.uid;
+  const isMissingMediaDevice = permissionError === 'NotFoundError';
+  const shouldShowPermissionPanel = Boolean(permissionError && !isMissingMediaDevice);
 
   const handleExitClick = () => {
     if (!room || !user) return;
-
-    if (room.hostUid === user.uid) {
-      // Host just navigates back
-      navigate('/dashboard');
-    } else {
-      // Guest gets a leaving confirmation modal
-      setIsLeaveConfirmOpen(true);
-    }
+    if (room.hostUid === user.uid) navigate('/dashboard');
+    else setIsLeaveConfirmOpen(true);
   };
 
   const handleJustLeave = () => {
@@ -140,103 +217,87 @@ export default function RoomPage() {
     }
   };
 
-  // WebRTC hook integration
-  const {
-    localStream,
-    peers,
-    permissionError,
-    isMuted,
-    isCameraOff,
-    toggleMic,
-    toggleCamera,
-    retryPermissions,
-    continueWithoutVideo,
-  } = useWebRTC(id, onlineUsers);
-
-  if (loadingRoom || !room) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)' }}>
-        <div className="skeleton-pulse" style={{ fontSize: '1.25rem', color: 'var(--text-secondary)' }}>
-          Cargando sala de estudio...
+  const mobileVideoContent = shouldShowPermissionPanel ? (
+    <PermissionErrorPanel errorType={permissionError || 'UnknownError'} onRetry={retryPermissions} onContinueWithoutVideo={continueWithoutVideo} />
+  ) : (
+    <>
+      {isMissingMediaDevice && (
+        <div role="status" style={{ margin: '0.75rem', backgroundColor: 'rgba(15,23,42,0.92)', border: '1px solid rgba(245,158,11,0.45)', color: '#f8fafc', borderRadius: '12px', padding: '0.8rem 1rem', fontSize: '0.88rem', textAlign: 'center' }}>
+          <strong style={{ display: 'block', marginBottom: '0.2rem' }}>No se encontró cámara o micrófono</strong>
+          <span style={{ color: '#cbd5e1' }}>Entraste como espectador: puedes ver a los demás y usar el chat.</span>
+        </div>
+      )}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <VideoGrid
+          localStream={localStream}
+          localUser={{ uid: user!.uid, username: user!.username || 'Tú', photoURL: user!.photoURL || null }}
+          peers={peers}
+          mediaStates={peerMediaStates}
+          isLocalMuted={!isAudioEnabled}
+          isLocalCameraOff={!isVideoEnabled || isMissingMediaDevice}
+          className="h-full"
+        />
+      </div>
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          padding: '0.75rem',
+          background: 'linear-gradient(180deg, rgba(2,6,23,0), rgba(2,6,23,0.92) 35%)',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '0.55rem', justifyContent: 'center' }}>
+          <button onClick={toggleAudio} style={{ backgroundColor: isAudioEnabled ? '#334155' : 'rgba(220,38,38,0.2)', border: isAudioEnabled ? '1px solid rgba(148,163,184,0.2)' : '1px solid rgba(239,68,68,0.8)', color: '#fff', borderRadius: '14px', padding: '0.8rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <IconMic muted={!isAudioEnabled} />
+            Mic
+          </button>
+          <button onClick={toggleVideo} style={{ backgroundColor: isVideoEnabled ? '#334155' : 'rgba(220,38,38,0.2)', border: isVideoEnabled ? '1px solid rgba(148,163,184,0.2)' : '1px solid rgba(239,68,68,0.8)', color: '#fff', borderRadius: '14px', padding: '0.8rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <IconCamera off={!isVideoEnabled} />
+            Cámara
+          </button>
+          <button
+            onClick={async () => {
+              if (isScreenSharing) await stopScreenShare();
+              else await startScreenShare();
+            }}
+            style={{ backgroundColor: isScreenSharing ? '#2563eb' : '#334155', border: '1px solid rgba(148,163,184,0.2)', color: '#fff', borderRadius: '14px', padding: '0.8rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+          >
+            <IconScreen active={isScreenSharing} />
+            {isScreenSharing ? 'Compartiendo' : 'Compartir'}
+          </button>
+          <button onClick={handleExitClick} style={{ backgroundColor: '#ef4444', border: '1px solid transparent', color: '#fff', borderRadius: '14px', padding: '0.8rem 0.95rem' }}>
+            Salir
+          </button>
         </div>
       </div>
-    );
-  }
-
-  const isHost = room.hostUid === user?.uid;
-  const isMissingMediaDevice = permissionError === 'NotFoundError';
-  const shouldShowPermissionPanel = Boolean(permissionError && !isMissingMediaDevice);
+    </>
+  );
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', overflow: 'hidden' }}>
-      
-      {/* Realtime Reconnecting Banner */}
-      {showReconnectingBanner && (
-        <div style={{ backgroundColor: 'var(--color-warning)', color: '#000000', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600, zIndex: 100 }}>
-          ⚠️ Conexión perdida. Intentando reconectar al servidor en tiempo real...
-        </div>
-      )}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', overflow: 'hidden' }}>
+      {showReconnectingBanner && <div style={{ backgroundColor: 'var(--color-warning)', color: '#000', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600 }}>Conexión perdida. Intentando reconectar...</div>}
+      {showConnectedSuccess && <div style={{ backgroundColor: 'var(--color-success)', color: '#fff', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600 }}>Conexión restablecida con éxito.</div>}
 
-      {/* Realtime Reconnect Success Banner */}
-      {showConnectedSuccess && (
-        <div style={{ backgroundColor: 'var(--color-success)', color: '#ffffff', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600, zIndex: 100 }}>
-          ✅ Conexión restablecida con éxito.
-        </div>
-      )}
-
-      {/* Header Navigation Navbar */}
-      <nav className="room-topbar" style={{ borderRadius: 0, flexShrink: 0 }} aria-label="Menú superior de la sala">
-        <div className="room-topbar-inner">
-          <button 
-            onClick={handleExitClick}
-            className="btn-secondary interactive-element" 
-            style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.9rem', borderColor: 'var(--border-color)' }}
-            aria-label="Salir de la sala"
-          >
+      <nav className="room-topbar" style={{ borderRadius: 0, flexShrink: 0 }}>
+        <div className="room-topbar-inner" style={{ gap: '0.75rem' }}>
+          <button onClick={handleExitClick} className="btn-secondary interactive-element" style={{ width: 'auto', padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
             ← Salir de sala
           </button>
-          
           <div className="room-topbar-meta" style={{ flexGrow: 1, justifyContent: 'center' }}>
-            <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 700 }}>
-              {room.name}
-            </h1>
-            <span 
-              style={{ 
-                fontSize: '0.85rem', 
-                color: isConnected ? '#86efac' : 'var(--text-secondary)', 
-                backgroundColor: 'var(--bg-surface)', 
-                padding: '0.2rem 0.5rem', 
-                borderRadius: '4px', 
-                border: isConnected ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--border-color)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem'
-              }}
-              title={isConnected ? 'Servidor en tiempo real conectado' : 'Desconectado'}
-            >
-              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isConnected ? 'var(--color-success)' : 'var(--color-danger)' }} />
+            <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 700 }}>{room!.name}</h1>
+            <span style={{ fontSize: '0.85rem', color: isConnected ? '#86efac' : 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', padding: '0.2rem 0.5rem', borderRadius: '999px', border: isConnected ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--border-color)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: isConnected ? 'var(--color-success)' : 'var(--color-danger)' }} />
               En línea: {onlineUsers.length}
             </span>
           </div>
-
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             {isHost && (
               <>
-                <button
-                  onClick={() => setIsEditOpen(true)}
-                  className="btn-secondary interactive-element"
-                  style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'var(--border-color)' }}
-                  aria-label="Editar sala"
-                >
-                  ✏️ Editar
+                <button onClick={() => setIsEditOpen(true)} className="btn-secondary interactive-element" style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem' }}>
+                  Editar
                 </button>
-                <button
-                  onClick={() => setIsDeleteOpen(true)}
-                  className="btn-secondary interactive-element"
-                  style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5' }}
-                  aria-label="Eliminar sala"
-                >
-                  ⚠️ Eliminar
+                <button onClick={() => setIsDeleteOpen(true)} className="btn-secondary interactive-element" style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', color: '#fca5a5' }}>
+                  Eliminar
                 </button>
               </>
             )}
@@ -244,300 +305,97 @@ export default function RoomPage() {
         </div>
       </nav>
 
-      {/* Main Layout containing Sidebar, Video Area, and Chat */}
-      <div style={{ display: 'flex', flexGrow: 1, overflow: 'hidden', minHeight: 0 }}>
-        
-        {/* Left Sidebar of Members (connected in real-time) */}
-        <MembersSidebar
-          members={onlineUsers}
-          hostUid={room.hostUid}
-          currentUserUid={user?.uid || ''}
-          isConnecting={isConnecting}
-        />
+      <div style={{ flex: 1, minHeight: 0 }} className="md:hidden">
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {activeTab === 'video' && mobileVideoContent}
+            {activeTab === 'people' && <MembersSidebar members={onlineUsers} hostUid={room!.hostUid} currentUserUid={user!.uid} mediaStates={peerMediaStates} isConnecting={isConnecting} />}
+            {activeTab === 'chat' && (
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <ChatPanel roomId={room!.id} />
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '1px solid rgba(148,163,184,0.18)', backgroundColor: '#0f172a' }}>
+            <button onClick={() => setActiveTab('video')} style={{ padding: '0.9rem 0.5rem', color: activeTab === 'video' ? '#fff' : '#94a3b8', background: activeTab === 'video' ? 'rgba(59,130,246,0.18)' : 'transparent' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><IconScreen active={false} />Video</span>
+            </button>
+            <button onClick={() => setActiveTab('people')} style={{ padding: '0.9rem 0.5rem', color: activeTab === 'people' ? '#fff' : '#94a3b8', background: activeTab === 'people' ? 'rgba(59,130,246,0.18)' : 'transparent' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><IconPeople />People</span>
+            </button>
+            <button onClick={() => setActiveTab('chat')} style={{ padding: '0.9rem 0.5rem', color: activeTab === 'chat' ? '#fff' : '#94a3b8', background: activeTab === 'chat' ? 'rgba(59,130,246,0.18)' : 'transparent' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><IconChat />Chat {unreadChatCount > 0 && activeTab !== 'chat' ? `(${unreadChatCount})` : ''}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-        {/* Workspace Areas */}
-        <main 
-          style={{ 
-            flexGrow: 1, 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 320px', 
-            height: '100%', 
-            minHeight: 0,
-            overflow: 'hidden',
-            backgroundColor: 'var(--bg-main)' 
-          }}
-          aria-label="Áreas de trabajo"
-        >
-          
-          {/* Main Area: Video Grid or Permission screen */}
-          <section 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              borderRight: '1px solid var(--border-color)',
-              minHeight: 0,
-              overflow: 'hidden',
-              backgroundColor: '#0a0f1d'
-            }}
-            aria-label="Cuadrícula de Video"
-          >
+      <div className="hidden md:flex" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <MembersSidebar members={onlineUsers} hostUid={room!.hostUid} currentUserUid={user!.uid} mediaStates={peerMediaStates} isConnecting={isConnecting} />
+        <main style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 320px', minHeight: 0, overflow: 'hidden' }}>
+          <section style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-color)', minHeight: 0, overflow: 'hidden', backgroundColor: '#0a0f1d' }}>
             {shouldShowPermissionPanel ? (
-              <PermissionErrorPanel
-                errorType={permissionError || 'UnknownError'}
-                onRetry={retryPermissions}
-                onContinueWithoutVideo={continueWithoutVideo}
-              />
+              <PermissionErrorPanel errorType={permissionError || 'UnknownError'} onRetry={retryPermissions} onContinueWithoutVideo={continueWithoutVideo} />
             ) : (
-              <div style={{ position: 'relative', flex: '1 1 0', minHeight: 0 }}>
-                {isMissingMediaDevice && (
-                  <div
-                    role="status"
-                    style={{
-                      position: 'absolute',
-                      top: '1rem',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      zIndex: 20,
-                      maxWidth: 'min(560px, calc(100% - 2rem))',
-                      width: 'max-content',
-                      backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                      border: '1px solid rgba(245, 158, 11, 0.45)',
-                      color: '#f8fafc',
-                      borderRadius: '8px',
-                      padding: '0.75rem 1rem',
-                      boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)',
-                      fontSize: '0.9rem',
-                      lineHeight: 1.4,
-                      textAlign: 'center',
-                    }}
-                  >
-                    <strong style={{ display: 'block', marginBottom: '0.2rem' }}>
-                      No se encontró cámara o micrófono en este dispositivo
-                    </strong>
-                    <span style={{ color: '#cbd5e1' }}>
-                      Entraste como espectador: puedes ver a los demás y usar el chat.
-                    </span>
-                  </div>
-                )}
-                <VideoGrid
-                localStream={localStream}
-                localUser={{
-                  uid: user?.uid || '',
-                  username: user?.username || 'Tú',
-                  photoURL: user?.photoURL || null,
-                }}
-                peers={peers}
-                isLocalMuted={isMuted}
-                isLocalCameraOff={isCameraOff || isMissingMediaDevice}
-              />
+              <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+                <VideoGrid localStream={localStream} localUser={{ uid: user!.uid, username: user!.username || 'Tú', photoURL: user!.photoURL || null }} peers={peers} mediaStates={peerMediaStates} isLocalMuted={!isAudioEnabled} isLocalCameraOff={!isVideoEnabled || isMissingMediaDevice} />
               </div>
             )}
           </section>
-
-          {/* Chat Panel */}
-          <ChatPanel roomId={room.id} />
-
+          <ChatPanel roomId={room!.id} />
         </main>
       </div>
 
-      {/* Bottom Controls Bar */}
-      <div 
-        style={{
-          height: '70px',
-          backgroundColor: '#1e293b',
-          borderTop: '1px solid #334155',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '1rem',
-          padding: '0 1.5rem',
-          flexShrink: 0,
-          zIndex: 50,
-        }}
-      >
-        <button
-          onClick={toggleMic}
-          className="btn-secondary interactive-element"
-          style={{
-            width: 'auto',
-            minHeight: 'auto',
-            padding: '0.5rem 1.25rem',
-            backgroundColor: isMuted ? 'rgba(239, 68, 68, 0.9)' : 'var(--bg-tertiary)',
-            color: '#ffffff',
-            borderColor: isMuted ? 'transparent' : '#334155',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>{isMuted ? '🎙️❌ Silenciado' : '🎤 Micrófono'}</span>
+      <div className="hidden md:flex" style={{ height: '70px', backgroundColor: '#1e293b', borderTop: '1px solid #334155', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '0 1.5rem' }}>
+        <button onClick={toggleAudio} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.25rem', backgroundColor: isAudioEnabled ? 'var(--bg-tertiary)' : 'rgba(239,68,68,0.2)', borderColor: isAudioEnabled ? '#334155' : 'rgba(239,68,68,0.8)', color: '#fff' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><IconMic muted={!isAudioEnabled} />{isAudioEnabled ? 'Micrófono' : 'Silenciado'}</span>
         </button>
-
-        <button
-          onClick={toggleCamera}
-          className="btn-secondary interactive-element"
-          style={{
-            width: 'auto',
-            minHeight: 'auto',
-            padding: '0.5rem 1.25rem',
-            backgroundColor: isCameraOff ? 'rgba(239, 68, 68, 0.9)' : 'var(--bg-tertiary)',
-            color: '#ffffff',
-            borderColor: isCameraOff ? 'transparent' : '#334155',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>{isCameraOff ? '📷❌ Cámara Apagada' : '📷 Cámara'}</span>
+        <button onClick={toggleVideo} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.25rem', backgroundColor: isVideoEnabled ? 'var(--bg-tertiary)' : 'rgba(239,68,68,0.2)', borderColor: isVideoEnabled ? '#334155' : 'rgba(239,68,68,0.8)', color: '#fff' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><IconCamera off={!isVideoEnabled} />{isVideoEnabled ? 'Cámara' : 'Cámara apagada'}</span>
         </button>
-
-        <button
-          className="btn-secondary interactive-element"
-          style={{
-            width: 'auto',
-            minHeight: 'auto',
-            padding: '0.5rem 1.25rem',
-            color: '#94a3b8',
-            borderColor: '#334155',
-            opacity: 0.6,
-            cursor: 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-          title="Próximamente en Sprint 5"
-          disabled
-        >
-          <span>🖥️ Compartir</span>
+        <button onClick={async () => (isScreenSharing ? stopScreenShare() : startScreenShare())} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.25rem', backgroundColor: isScreenSharing ? '#2563eb' : 'var(--bg-tertiary)', color: '#fff' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><IconScreen active={isScreenSharing} />{isScreenSharing ? 'Compartiendo' : 'Compartir'}</span>
         </button>
-
-        <button
-          onClick={handleExitClick}
-          className="btn-secondary interactive-element"
-          style={{
-            width: 'auto',
-            minHeight: 'auto',
-            padding: '0.5rem 1.5rem',
-            backgroundColor: 'var(--color-danger)',
-            color: '#ffffff',
-            borderColor: 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontWeight: 600,
-          }}
-        >
-          <span>🚪 Salir</span>
+        <button onClick={handleExitClick} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.5rem', backgroundColor: 'var(--color-danger)', color: '#fff' }}>
+          Salir
         </button>
       </div>
 
-      {/* Host Edit Modal */}
-      {isHost && (
-        <EditRoomModal
-          isOpen={isEditOpen}
-          onClose={() => setIsEditOpen(false)}
-          room={room}
-          onUpdated={() => setToast({ message: 'Sala actualizada', type: 'success' })}
-        />
-      )}
+      {isHost && <EditRoomModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} room={room!} onUpdated={() => setToast({ message: 'Sala actualizada', type: 'success' })} />}
+      {isHost && <DeleteRoomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} room={room!} onDeleted={() => { setToast({ message: 'Sala eliminada', type: 'success' }); setIsDeleteOpen(false); navigate('/dashboard'); }} />}
 
-      {isHost && (
-        <DeleteRoomModal
-          isOpen={isDeleteOpen}
-          onClose={() => setIsDeleteOpen(false)}
-          room={room}
-          onDeleted={() => {
-            setToast({ message: 'Sala eliminada', type: 'success' });
-            setIsDeleteOpen(false);
-            navigate('/dashboard');
-          }}
-        />
-      )}
-
-      {/* Guest Leaving Confirmation Overlay */}
       {isLeaveConfirmOpen && (
         <div className="modal-overlay" onClick={() => setIsLeaveConfirmOpen(false)}>
           <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title" style={{ fontSize: '1.2rem' }}>¿Salir de la sala?</h2>
-              <button type="button" className="modal-close" onClick={() => setIsLeaveConfirmOpen(false)} aria-label="Cerrar modal">
-                &times;
-              </button>
+              <button type="button" className="modal-close" onClick={() => setIsLeaveConfirmOpen(false)} aria-label="Cerrar modal">&times;</button>
             </div>
-            
             <div className="modal-body">
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                Selecciona si deseas simplemente salir al dashboard o abandonar la sala permanentemente.
-              </p>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>Selecciona si deseas simplemente salir al dashboard o abandonar la sala permanentemente.</p>
             </div>
-
             <div className="modal-footer" style={{ flexDirection: 'column', gap: '0.5rem' }}>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleJustLeave}
-                style={{ width: '100%', padding: '0.65rem' }}
-              >
-                Solo salir al dashboard
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleLeavePermanently}
-                style={{ width: '100%', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.25)', padding: '0.65rem' }}
-              >
-                Salir y abandonar sala permanentemente
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setIsLeaveConfirmOpen(false)}
-                style={{ width: '100%', border: '0', minHeight: 'auto', padding: '0.5rem', color: 'var(--text-secondary)' }}
-              >
-                Cancelar
-              </button>
+              <button type="button" className="btn-primary" onClick={handleJustLeave} style={{ width: '100%', padding: '0.65rem' }}>Solo salir al dashboard</button>
+              <button type="button" className="btn-secondary" onClick={handleLeavePermanently} style={{ width: '100%', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.25)', padding: '0.65rem' }}>Salir y abandonar sala permanentemente</button>
+              <button type="button" className="btn-secondary" onClick={() => setIsLeaveConfirmOpen(false)} style={{ width: '100%', border: 0, minHeight: 'auto', padding: '0.5rem', color: 'var(--text-secondary)' }}>Cancelar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toast && (
-        <div className="toast-container">
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      )}
+      {toast && <div className="toast-container"><Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} /></div>}
 
-      {/* Room Deleted Modal Overlay */}
       {isDeletedModalOpen && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
           <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title" style={{ color: 'var(--color-danger)', fontSize: '1.25rem' }}>⚠️ Sala Eliminada</h2>
+              <h2 className="modal-title" style={{ color: 'var(--color-danger)', fontSize: '1.25rem' }}>Sala eliminada</h2>
             </div>
-            
             <div className="modal-body">
-              <p style={{ fontSize: '0.95rem', color: '#ffffff', lineHeight: '1.5' }}>
-                Esta sala de estudio fue eliminada por el anfitrión.
-              </p>
+              <p style={{ fontSize: '0.95rem', color: '#ffffff', lineHeight: '1.5' }}>Esta sala de estudio fue eliminada por el anfitrión.</p>
             </div>
-
             <div className="modal-footer">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  setIsDeletedModalOpen(false);
-                  navigate('/dashboard');
-                }}
-                style={{ width: '100%', padding: '0.65rem' }}
-              >
+              <button type="button" className="btn-primary" onClick={() => { setIsDeletedModalOpen(false); navigate('/dashboard'); }} style={{ width: '100%', padding: '0.65rem' }}>
                 Volver al dashboard
               </button>
             </div>

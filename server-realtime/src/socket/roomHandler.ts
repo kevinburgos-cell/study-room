@@ -6,6 +6,24 @@ import { ConnectedUser, JoinRoomPayload, LeaveRoomPayload } from '../types/socke
 const connectedUsers: { [roomId: string]: ConnectedUser[] } = {};
 
 export function registerRoomHandlers(io: Server, socket: Socket) {
+  const emitExistingPeers = (roomId: string) => {
+    const peersList = connectedUsers[roomId]
+      .filter((u) => u.socketId !== socket.id)
+      .map((u) => {
+        const peerSocket = io.sockets.sockets.get(u.socketId);
+        return {
+          socketId: u.socketId,
+          uid: u.uid,
+          username: u.username,
+          audioEnabled: Boolean((peerSocket as any)?.audioEnabled ?? true),
+          videoEnabled: Boolean((peerSocket as any)?.videoEnabled ?? true),
+          isScreenSharing: Boolean((peerSocket as any)?.isScreenSharing),
+        };
+      });
+
+    console.log(`[Socket-Room] Emitting existing-peers list for ${socket.id}:`, JSON.stringify(peersList));
+    socket.emit('existing-peers', { peers: peersList });
+  };
   
   // 1. Join Room Event
   socket.on('join-room', async (payload: JoinRoomPayload) => {
@@ -29,10 +47,13 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
       socket.join(roomId);
 
       // Save socket metadata for automatic cleanup
-      (socket as any).roomId = roomId;
-      (socket as any).uid = uid;
-      (socket as any).isMuted = false;
-      (socket as any).isCameraOff = false;
+      socket.data.roomId = roomId;
+      socket.data.uid = uid;
+      socket.data.username = username;
+      socket.data.photoURL = photoURL;
+      socket.data.audioEnabled = true;
+      socket.data.videoEnabled = true;
+      socket.data.isScreenSharing = false;
 
       if (!connectedUsers[roomId]) {
         connectedUsers[roomId] = [];
@@ -66,29 +87,27 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         })),
       });
 
-      const peersList = connectedUsers[roomId]
-        .filter(u => u.socketId !== socket.id)
-        .map(u => {
-          const peerSocket = io.sockets.sockets.get(u.socketId);
-          return {
-            socketId: u.socketId,
-            uid: u.uid,
-            username: u.username,
-            isMuted: Boolean((peerSocket as any)?.isMuted),
-            isCameraOff: Boolean((peerSocket as any)?.isCameraOff),
-          };
-        });
+      console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}.`);
 
-      console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}. Found ${peersList.length} existing peers.`);
-      console.log('[Socket-Room] Emitting existing-peers list:', JSON.stringify(peersList));
-
-      // Emit existing peers list for WebRTC signaling
-      socket.emit('existing-peers', {
-        peers: peersList
-      });
+      // Emit existing peers list after a short delay to reduce WebRTC race conditions
+      setTimeout(() => {
+        emitExistingPeers(roomId);
+      }, 500);
     } catch (err: any) {
       socket.emit('error', { message: err.message || 'Error al unirse a la sala' });
     }
+  });
+
+  socket.on('request-rejoin', (payload: { roomId: string }) => {
+    const { roomId } = payload;
+    if (!roomId) return;
+    setTimeout(() => {
+      if (socket.connected && connectedUsers[roomId]?.some((u) => u.socketId !== socket.id)) {
+        emitExistingPeers(roomId);
+      } else if (socket.connected && connectedUsers[roomId]) {
+        emitExistingPeers(roomId);
+      }
+    }, 500);
   });
 
   // 2. Leave Room Event
@@ -117,10 +136,13 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
       }
     }
 
-    delete (socket as any).roomId;
-    delete (socket as any).uid;
-    delete (socket as any).isMuted;
-    delete (socket as any).isCameraOff;
+    delete socket.data.roomId;
+    delete socket.data.uid;
+    delete socket.data.username;
+    delete socket.data.photoURL;
+    delete socket.data.audioEnabled;
+    delete socket.data.videoEnabled;
+    delete socket.data.isScreenSharing;
   });
 
   // 3. Delete Room Event
@@ -152,6 +174,16 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           delete connectedUsers[roomId];
         }
       }
+    }
+  });
+
+  socket.on('heartbeat', (payload: { roomId: string; uid?: string }) => {
+    if (payload?.roomId) {
+      socket.emit('heartbeat-ack', {
+        timestamp: Date.now(),
+        roomId: payload.roomId,
+        uid: payload.uid ?? socket.data.uid ?? null,
+      });
     }
   });
 }

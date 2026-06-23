@@ -102,6 +102,8 @@ const io = new socket_io_1.Server(httpServer, {
         credentials: true,
     },
 });
+io.engine.pingTimeout = 10000;
+io.engine.pingInterval = 5000;
 // Initialize WebSockets logic
 (0, socket_1.initializeSockets)(io);
 // Start server

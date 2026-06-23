@@ -1,81 +1,81 @@
 import React, { useEffect, useRef } from 'react';
+import type { PeerMediaState } from '../hooks/usePeerMediaState';
 
 interface VideoTileProps {
   stream: MediaStream | null;
   username: string;
   isLocal?: boolean;
-  isMuted?: boolean;
-  isCameraOff?: boolean;
+  mediaState?: PeerMediaState;
   photoURL?: string | null;
+  isScreenSharing?: boolean;
+}
+
+function MicOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v6a3 3 0 0 0 5.2 2.1" />
+      <path d="M19 11a7 7 0 0 1-7 7m-4-1a7 7 0 0 0 11-6" />
+      <path d="M5 11v1a7 7 0 0 0 12.5 4.3" />
+      <path d="M1 1l22 22" />
+    </svg>
+  );
 }
 
 export default function VideoTile({
   stream,
   username,
   isLocal = false,
-  isMuted = false,
-  isCameraOff = false,
+  mediaState,
   photoURL = null,
+  isScreenSharing = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioEnabled = mediaState?.audioEnabled ?? true;
+  const videoEnabled = mediaState?.videoEnabled ?? true;
+  const sharing = mediaState?.isScreenSharing ?? isScreenSharing;
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      // Check if there is an active video track
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack && videoTrack.enabled && !isCameraOff) {
-        videoRef.current.srcObject = stream;
-      } else {
-        videoRef.current.srcObject = null;
-      }
+    if (videoRef.current && stream && videoEnabled && !sharing) {
+      videoRef.current.srcObject = stream;
     } else if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  }, [stream, isCameraOff]);
+  }, [stream, videoEnabled, sharing]);
 
-  const initials = username
-    ? username.slice(0, 2).toUpperCase()
-    : 'U';
-
-  const videoTrack = stream?.getVideoTracks()[0];
-  const hasVideoTrack = Boolean(videoTrack && videoTrack.readyState === 'live' && !isCameraOff);
+  const initials = username ? username.slice(0, 2).toUpperCase() : 'U';
+  const shouldShowAvatar = !stream || !videoEnabled || sharing;
 
   return (
-    <div 
+    <div
       className="video-tile"
       style={{
         position: 'relative',
-        backgroundColor: '#000000',
-        borderRadius: 'var(--radius-lg)',
-        border: isLocal ? '2px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-color)',
+        backgroundColor: '#020617',
+        borderRadius: '18px',
+        border: isLocal ? '2px solid rgba(59, 130, 246, 0.6)' : '1px solid rgba(148, 163, 184, 0.18)',
         overflow: 'hidden',
-        aspectRatio: '16/9',
+        aspectRatio: '16 / 9',
         width: '100%',
         height: '100%',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+        boxShadow: '0 12px 28px rgba(0,0,0,0.28)',
       }}
     >
-      {/* Video Element */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted={isLocal} // Always mute local video playback to avoid feedback loop
+        muted={isLocal}
         style={{
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          display: hasVideoTrack ? 'block' : 'none',
-          transform: isLocal ? 'scaleX(-1)' : 'none', // Mirror effect for local self-view
+          display: shouldShowAvatar ? 'none' : 'block',
+          transform: isLocal ? 'scaleX(-1)' : 'none',
         }}
       />
 
-      {/* Avatar Fallback */}
-      {!hasVideoTrack && (
-        <div 
+      {shouldShowAvatar && (
+        <div
           style={{
             position: 'absolute',
             inset: 0,
@@ -83,112 +83,107 @@ export default function VideoTile({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
-            color: 'var(--text-primary)',
+            background: 'radial-gradient(circle at top, #1e293b 0%, #020617 72%)',
+            color: '#f8fafc',
           }}
         >
           {photoURL ? (
-            <img 
-              src={photoURL} 
-              alt={username} 
+            <img
+              src={photoURL}
+              alt={username}
               style={{
-                width: '80px',
-                height: '80px',
+                width: 84,
+                height: 84,
                 borderRadius: '50%',
                 objectFit: 'cover',
-                border: '3px solid var(--border-color)',
+                border: '3px solid rgba(255,255,255,0.16)',
                 marginBottom: '0.75rem',
               }}
             />
           ) : (
-            <div 
+            <div
               style={{
-                width: '70px',
-                height: '70px',
+                width: 84,
+                height: 84,
                 borderRadius: '50%',
-                backgroundColor: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
+                backgroundColor: '#334155',
                 fontSize: '1.75rem',
-                fontWeight: 700,
+                fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '3px solid var(--border-color)',
+                border: '3px solid rgba(255,255,255,0.16)',
                 marginBottom: '0.75rem',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
               }}
             >
               {initials}
             </div>
           )}
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Cámara apagada
+          <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>
+            {sharing ? 'Compartiendo pantalla' : 'Cámara apagada'}
           </span>
         </div>
       )}
 
-      {/* Mic Mute Indicator Icon */}
-      {isMuted && (
-        <div 
+      {!audioEnabled && (
+        <div
           style={{
             position: 'absolute',
             top: '0.75rem',
             right: '0.75rem',
-            backgroundColor: 'rgba(239, 68, 68, 0.85)',
-            color: '#ffffff',
-            borderRadius: '50%',
-            width: '28px',
-            height: '28px',
+            backgroundColor: 'rgba(220, 38, 38, 0.95)',
+            color: '#fff',
+            borderRadius: '999px',
+            width: '32px',
+            height: '32px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.85rem',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            boxShadow: '0 8px 18px rgba(0,0,0,0.28)',
             zIndex: 10,
           }}
           title="Micrófono silenciado"
         >
-          🎙️❌
+          <MicOffIcon />
         </div>
       )}
 
-      {/* Username / Status Label Bar */}
-      <div 
+      {sharing && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '0.75rem',
+            left: '0.75rem',
+            backgroundColor: 'rgba(37, 99, 235, 0.95)',
+            color: '#fff',
+            padding: '0.35rem 0.6rem',
+            borderRadius: '999px',
+            fontSize: '0.76rem',
+            fontWeight: 700,
+            zIndex: 10,
+          }}
+        >
+          Compartiendo pantalla
+        </div>
+      )}
+
+      <div
         style={{
           position: 'absolute',
           bottom: '0.75rem',
           left: '0.75rem',
-          backgroundColor: 'rgba(15, 23, 42, 0.75)',
-          backdropFilter: 'blur(4px)',
-          color: '#ffffff',
+          backgroundColor: 'rgba(15, 23, 42, 0.72)',
+          backdropFilter: 'blur(10px)',
+          color: '#fff',
           padding: '0.25rem 0.6rem',
-          borderRadius: '4px',
-          fontSize: '0.85rem',
-          fontWeight: 500,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          pointerEvents: 'none',
-          zIndex: 10,
+          borderRadius: '999px',
+          fontSize: '0.82rem',
+          fontWeight: 600,
+          border: '1px solid rgba(255,255,255,0.08)',
         }}
       >
-        <span>{username}</span>
-        {isLocal && (
-          <span 
-            style={{
-              backgroundColor: 'var(--color-success)',
-              color: '#ffffff',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              padding: '0.05rem 0.3rem',
-              borderRadius: '2px',
-              textTransform: 'uppercase',
-            }}
-          >
-            Tú
-          </span>
-        )}
+        {username}
+        {isLocal && <span style={{ marginLeft: '0.35rem', color: '#86efac' }}>Tú</span>}
       </div>
     </div>
   );
