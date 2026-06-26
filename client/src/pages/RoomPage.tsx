@@ -274,18 +274,18 @@ export default function RoomPage() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)', overflow: 'hidden' }}>
+    <div className="room-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {showReconnectingBanner && <div style={{ backgroundColor: 'var(--color-warning)', color: '#000', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600 }}>Conexión perdida. Intentando reconectar...</div>}
       {showConnectedSuccess && <div style={{ backgroundColor: 'var(--color-success)', color: '#fff', padding: '0.6rem 1rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600 }}>Conexión restablecida con éxito.</div>}
 
       <nav className="room-topbar" style={{ borderRadius: 0, flexShrink: 0 }}>
         <div className="room-topbar-inner" style={{ gap: '0.75rem' }}>
-          <button onClick={handleExitClick} className="btn-secondary interactive-element" style={{ width: 'auto', padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+          <button onClick={handleExitClick} className="btn-secondary interactive-element room-control-btn" style={{ fontSize: '0.9rem' }}>
             ← Salir de sala
           </button>
           <div className="room-topbar-meta" style={{ flexGrow: 1, justifyContent: 'center' }}>
             <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 700 }}>{room!.name}</h1>
-            <span style={{ fontSize: '0.85rem', color: isConnected ? '#86efac' : 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', padding: '0.2rem 0.5rem', borderRadius: '999px', border: isConnected ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--border-color)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.85rem', color: isConnected ? '#86efac' : 'var(--text-secondary)', backgroundColor: 'rgba(15,23,42,0.72)', padding: '0.25rem 0.65rem', borderRadius: '999px', border: isConnected ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(148,163,184,0.16)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: isConnected ? 'var(--color-success)' : 'var(--color-danger)' }} />
               En línea: {onlineUsers.length}
             </span>
@@ -293,10 +293,10 @@ export default function RoomPage() {
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             {isHost && (
               <>
-                <button onClick={() => setIsEditOpen(true)} className="btn-secondary interactive-element" style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem' }}>
+                <button onClick={() => setIsEditOpen(true)} className="btn-secondary interactive-element room-control-btn" style={{ height: '38px' }}>
                   Editar
                 </button>
-                <button onClick={() => setIsDeleteOpen(true)} className="btn-secondary interactive-element" style={{ width: 'auto', height: '38px', minHeight: 'auto', padding: '0 0.75rem', color: '#fca5a5' }}>
+                <button onClick={() => setIsDeleteOpen(true)} className="btn-secondary interactive-element room-control-btn" style={{ height: '38px', color: '#fca5a5' }}>
                   Eliminar
                 </button>
               </>
@@ -307,23 +307,23 @@ export default function RoomPage() {
 
       <div style={{ flex: 1, minHeight: 0 }} className="md:hidden">
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="room-stage" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {activeTab === 'video' && mobileVideoContent}
-            {activeTab === 'people' && <MembersSidebar members={onlineUsers} hostUid={room!.hostUid} currentUserUid={user!.uid} mediaStates={peerMediaStates} isConnecting={isConnecting} />}
+            {activeTab === 'people' && <div className="room-stage-panel" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}><MembersSidebar members={onlineUsers} hostUid={room!.hostUid} currentUserUid={user!.uid} mediaStates={peerMediaStates} isConnecting={isConnecting} /></div>}
             {activeTab === 'chat' && (
-              <div style={{ flex: 1, minHeight: 0 }}>
+              <div className="room-stage-panel" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 <ChatPanel roomId={room!.id} />
               </div>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '1px solid rgba(148,163,184,0.18)', backgroundColor: '#0f172a' }}>
-            <button onClick={() => setActiveTab('video')} style={{ padding: '0.9rem 0.5rem', color: activeTab === 'video' ? '#fff' : '#94a3b8', background: activeTab === 'video' ? 'rgba(59,130,246,0.18)' : 'transparent' }}>
+          <div className="room-mobile-tabs">
+            <button onClick={() => setActiveTab('video')} className={`room-mobile-tab ${activeTab === 'video' ? 'active' : ''}`}>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><IconScreen active={false} />Video</span>
             </button>
-            <button onClick={() => setActiveTab('people')} style={{ padding: '0.9rem 0.5rem', color: activeTab === 'people' ? '#fff' : '#94a3b8', background: activeTab === 'people' ? 'rgba(59,130,246,0.18)' : 'transparent' }}>
+            <button onClick={() => setActiveTab('people')} className={`room-mobile-tab ${activeTab === 'people' ? 'active' : ''}`}>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><IconPeople />People</span>
             </button>
-            <button onClick={() => setActiveTab('chat')} style={{ padding: '0.9rem 0.5rem', color: activeTab === 'chat' ? '#fff' : '#94a3b8', background: activeTab === 'chat' ? 'rgba(59,130,246,0.18)' : 'transparent' }}>
+            <button onClick={() => setActiveTab('chat')} className={`room-mobile-tab ${activeTab === 'chat' ? 'active' : ''}`}>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}><IconChat />Chat {unreadChatCount > 0 && activeTab !== 'chat' ? `(${unreadChatCount})` : ''}</span>
             </button>
           </div>
@@ -333,7 +333,7 @@ export default function RoomPage() {
       <div className="hidden md:flex" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <MembersSidebar members={onlineUsers} hostUid={room!.hostUid} currentUserUid={user!.uid} mediaStates={peerMediaStates} isConnecting={isConnecting} />
         <main style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 320px', minHeight: 0, overflow: 'hidden' }}>
-          <section style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-color)', minHeight: 0, overflow: 'hidden', backgroundColor: '#0a0f1d' }}>
+          <section className="room-stage-panel" style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(148,163,184,0.16)', minHeight: 0, overflow: 'hidden', backgroundColor: 'rgba(2, 6, 23, 0.72)' }}>
             {shouldShowPermissionPanel ? (
               <PermissionErrorPanel errorType={permissionError || 'UnknownError'} onRetry={retryPermissions} onContinueWithoutVideo={continueWithoutVideo} />
             ) : (
@@ -346,17 +346,17 @@ export default function RoomPage() {
         </main>
       </div>
 
-      <div className="hidden md:flex" style={{ height: '70px', backgroundColor: '#1e293b', borderTop: '1px solid #334155', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '0 1.5rem' }}>
-        <button onClick={toggleAudio} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.25rem', backgroundColor: isAudioEnabled ? 'var(--bg-tertiary)' : 'rgba(239,68,68,0.2)', borderColor: isAudioEnabled ? '#334155' : 'rgba(239,68,68,0.8)', color: '#fff' }}>
+      <div className="hidden md:flex room-control-dock">
+        <button onClick={toggleAudio} className="btn-secondary interactive-element room-control-btn" style={{ backgroundColor: isAudioEnabled ? 'var(--bg-tertiary)' : 'rgba(239,68,68,0.2)', borderColor: isAudioEnabled ? '#334155' : 'rgba(239,68,68,0.8)', color: '#fff' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><IconMic muted={!isAudioEnabled} />{isAudioEnabled ? 'Micrófono' : 'Silenciado'}</span>
         </button>
-        <button onClick={toggleVideo} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.25rem', backgroundColor: isVideoEnabled ? 'var(--bg-tertiary)' : 'rgba(239,68,68,0.2)', borderColor: isVideoEnabled ? '#334155' : 'rgba(239,68,68,0.8)', color: '#fff' }}>
+        <button onClick={toggleVideo} className="btn-secondary interactive-element room-control-btn" style={{ backgroundColor: isVideoEnabled ? 'var(--bg-tertiary)' : 'rgba(239,68,68,0.2)', borderColor: isVideoEnabled ? '#334155' : 'rgba(239,68,68,0.8)', color: '#fff' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><IconCamera off={!isVideoEnabled} />{isVideoEnabled ? 'Cámara' : 'Cámara apagada'}</span>
         </button>
-        <button onClick={async () => (isScreenSharing ? stopScreenShare() : startScreenShare())} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.25rem', backgroundColor: isScreenSharing ? '#2563eb' : 'var(--bg-tertiary)', color: '#fff' }}>
+        <button onClick={async () => (isScreenSharing ? stopScreenShare() : startScreenShare())} className="btn-secondary interactive-element room-control-btn" style={{ backgroundColor: isScreenSharing ? '#2563eb' : 'var(--bg-tertiary)', color: '#fff' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><IconScreen active={isScreenSharing} />{isScreenSharing ? 'Compartiendo' : 'Compartir'}</span>
         </button>
-        <button onClick={handleExitClick} className="btn-secondary interactive-element" style={{ width: 'auto', minHeight: 'auto', padding: '0.5rem 1.5rem', backgroundColor: 'var(--color-danger)', color: '#fff' }}>
+        <button onClick={handleExitClick} className="btn-secondary interactive-element room-control-btn" style={{ backgroundColor: 'var(--color-danger)', color: '#fff' }}>
           Salir
         </button>
       </div>

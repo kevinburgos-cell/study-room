@@ -51,13 +51,13 @@ export default function VideoTile({
       style={{
         position: 'relative',
         backgroundColor: '#020617',
-        borderRadius: '18px',
-        border: isLocal ? '2px solid rgba(59, 130, 246, 0.6)' : '1px solid rgba(148, 163, 184, 0.18)',
+        borderRadius: '1.25rem',
+        border: isLocal ? '1px solid rgba(59, 130, 246, 0.55)' : '1px solid rgba(148, 163, 184, 0.16)',
         overflow: 'hidden',
         aspectRatio: '16 / 9',
         width: '100%',
         height: '100%',
-        boxShadow: '0 12px 28px rgba(0,0,0,0.28)',
+        boxShadow: '0 18px 36px rgba(2,6,23,0.35)',
       }}
     >
       <video
@@ -175,7 +175,7 @@ export default function VideoTile({
           backgroundColor: 'rgba(15, 23, 42, 0.72)',
           backdropFilter: 'blur(10px)',
           color: '#fff',
-          padding: '0.25rem 0.6rem',
+          padding: '0.35rem 0.7rem',
           borderRadius: '999px',
           fontSize: '0.82rem',
           fontWeight: 600,
