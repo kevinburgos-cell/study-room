@@ -12,6 +12,13 @@ interface VideoGridProps {
   className?: string;
 }
 
+function getGridClass(totalParticipants: number) {
+  if (totalParticipants <= 1) return 'grid-cols-1 place-items-center max-w-[800px]';
+  if (totalParticipants === 2) return 'grid-cols-1 md:grid-cols-2';
+  if (totalParticipants <= 4) return 'grid-cols-2';
+  return 'grid-cols-3';
+}
+
 export default function VideoGrid({
   localStream,
   localUser,
@@ -22,79 +29,117 @@ export default function VideoGrid({
   className = '',
 }: VideoGridProps) {
   const peerList = Array.from(peers.entries());
-  const total = 1 + peerList.length;
+  const totalParticipants = 1 + peerList.length;
+  const screenSharingPeer = peerList.find(([socketId, peerInfo]) => {
+    const mediaState = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
+    return Boolean(mediaState?.isScreenSharing);
+  });
+  const hasScreenShare = Boolean(screenSharingPeer);
+  const gridClass = getGridClass(totalParticipants);
+  const localMediaState = {
+    audioEnabled: !isLocalMuted,
+    videoEnabled: !isLocalCameraOff,
+  };
 
-  const gridStyle: React.CSSProperties =
-    total === 1
-      ? { gridTemplateColumns: '1fr', maxWidth: '900px' }
-      : total === 2
-        ? { gridTemplateColumns: '1fr', maxWidth: '1100px' }
-        : total === 3
-          ? { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: '1200px' }
-          : { gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' };
+  if (hasScreenShare && screenSharingPeer) {
+    const [sharingSocketId, sharingPeer] = screenSharingPeer;
+    const sharingMedia = mediaStates?.get(sharingSocketId) ?? mediaStates?.get(sharingPeer.uid);
+    const sidePeers = peerList.filter(([socketId]) => socketId !== sharingSocketId);
+
+    return (
+      <div className={`relative h-full w-full ${className}`}>
+        <div className="grid h-full w-full gap-2 overflow-hidden p-2 md:grid-cols-[2fr_1fr]">
+          <div className="min-h-0">
+            <VideoTile
+              stream={sharingPeer.stream}
+              username={sharingPeer.username}
+              mediaState={sharingMedia}
+              isScreenSharing
+            />
+          </div>
+
+          <div className="grid min-h-0 grid-cols-2 gap-2 overflow-y-auto md:grid-cols-1">
+            <div className="min-h-[120px]">
+              <VideoTile
+                stream={localStream}
+                username={localUser.username}
+                isLocal
+                mediaState={localMediaState}
+                photoURL={localUser.photoURL}
+              />
+            </div>
+
+            {sidePeers.map(([socketId, peerInfo]) => {
+              const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
+              return (
+                <div key={socketId} className="min-h-[120px]">
+                  <VideoTile stream={peerInfo.stream} username={peerInfo.username} mediaState={peerMedia} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={className}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        padding: 'clamp(0.5rem, 1.5vw, 1rem)',
-      }}
-    >
+    <div className={`relative h-full w-full ${className}`}>
       <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'grid',
-          gap: '0.9rem',
-          alignContent: 'start',
-          overflowY: total > 4 ? 'auto' : 'hidden',
-          ...gridStyle,
-        }}
+        className={[
+          'grid h-full w-full gap-2 overflow-y-auto p-2',
+          gridClass,
+          totalParticipants === 1 ? 'justify-items-center' : '',
+        ].join(' ')}
       >
-        <div style={total === 2 ? { display: 'flex', justifyContent: 'center' } : undefined}>
+        <div
+          className={[
+            'w-full',
+            totalParticipants === 1 ? 'max-w-[800px]' : '',
+            totalParticipants === 2 ? 'aspect-video' : '',
+            totalParticipants >= 5 ? 'min-h-[180px]' : '',
+          ].join(' ')}
+        >
           <VideoTile
             stream={localStream}
             username={localUser.username}
             isLocal
-            mediaState={{
-              audioEnabled: !isLocalMuted,
-              videoEnabled: !isLocalCameraOff,
-            }}
+            mediaState={localMediaState}
             photoURL={localUser.photoURL}
           />
         </div>
 
         {peerList.map(([socketId, peerInfo]) => {
           const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
-          const isLargeScreenShare = Boolean(peerMedia?.isScreenSharing);
+          const isScreenSharing = Boolean(peerMedia?.isScreenSharing);
           return (
             <div
               key={socketId}
-              style={
-                isLargeScreenShare
-                  ? {
-                      gridColumn: 'span 2',
-                      minHeight: 'min(42vh, 420px)',
-                    }
-                  : undefined
-              }
+              className={[
+                'w-full',
+                isScreenSharing ? 'md:col-span-2 md:min-h-[55vh]' : '',
+                totalParticipants === 2 ? 'aspect-video' : '',
+                totalParticipants >= 5 ? 'min-h-[180px]' : '',
+              ].join(' ')}
             >
               <VideoTile
                 stream={peerInfo.stream}
                 username={peerInfo.username}
                 mediaState={peerMedia}
-                isScreenSharing={peerMedia?.isScreenSharing}
+                isScreenSharing={isScreenSharing}
               />
             </div>
           );
         })}
       </div>
+
+      {totalParticipants === 1 && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="rounded-full bg-black/45 px-4 py-2 text-sm text-slate-200 backdrop-blur">
+            Esperando que otros se unan...
+          </div>
+        </div>
+      )}
     </div>
   );
 }
