@@ -45,7 +45,7 @@ export default function VideoTile({
   const initials = username ? username.slice(0, 2).toUpperCase() : 'U';
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg bg-slate-950 shadow-[0_18px_40px_rgba(2,6,23,0.42)]">
+    <div className="relative h-full w-full overflow-hidden rounded-lg bg-black shadow-[0_18px_40px_rgba(2,6,23,0.42)]">
       <video
         ref={videoRef}
         autoPlay
@@ -59,7 +59,7 @@ export default function VideoTile({
       />
 
       {showAvatar && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1E293B]">
           {photoURL ? (
             <img src={photoURL} alt={username} className="mb-3 h-20 w-20 rounded-full object-cover ring-2 ring-white/10" />
           ) : (
@@ -67,24 +67,24 @@ export default function VideoTile({
               {initials}
             </div>
           )}
-          <span className="text-sm text-slate-200">{sharing ? 'Compartiendo pantalla' : 'Cámara apagada'}</span>
+          <span className="text-sm text-slate-300 font-medium">{sharing ? 'Compartiendo pantalla' : 'Cámara apagada'}</span>
         </div>
       )}
 
-      {sharing && (
-        <div className="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-1 text-xs font-semibold text-white shadow-lg">
+      {sharing && !isLocal && (
+        <div className="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white shadow-lg">
           Compartiendo pantalla
         </div>
       )}
 
       {isLocal && (
-        <div className="absolute left-2 top-2 rounded-full bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
+        <div className="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
           Tú
         </div>
       )}
 
       {!audioEnabled && (
-        <div className="absolute right-2 top-2 rounded-full bg-red-600 p-2 text-white shadow-lg">
+        <div className="absolute right-2 top-2 rounded-full bg-red-600 p-2 text-white shadow-md flex items-center justify-center">
           <MicOffIcon />
         </div>
       )}

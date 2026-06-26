@@ -99,79 +99,133 @@ export default function RoomBottombar({
   onLeave,
 }: RoomBottombarProps) {
   return (
-    <footer className="shrink-0 border-t border-slate-700 bg-slate-800 text-white">
-      <div className="flex items-center justify-center gap-2 px-3 py-3 md:gap-3 md:py-4">
+    <footer className="shrink-0 bg-[#1E293B] border-t border-[#334155] h-[64px] md:h-[72px] text-white px-4 md:px-6 flex items-center justify-between">
+      {/* Left spacer/aligner to balance out ml-auto on Salir button or keep controls centered */}
+      <div className="flex-1 hidden md:block" />
+
+      {/* Center Controls */}
+      <div className="flex items-center justify-center gap-2 md:gap-3 flex-1 md:flex-initial">
+        {/* Mic Button */}
         <button
           onClick={onToggleAudio}
-          className={[
-            'flex min-w-[80px] flex-col items-center justify-center gap-1 rounded-full px-3 py-2 transition',
-            isAudioEnabled ? 'bg-slate-700 hover:bg-slate-600' : 'bg-red-600 hover:bg-red-500',
-          ].join(' ')}
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
         >
-          <MicIcon muted={!isAudioEnabled} />
-          <span className="hidden text-[11px] font-semibold md:block">{isAudioEnabled ? 'Mic' : 'Mute'}</span>
+          <div
+            className={[
+              'rounded-full p-2.5 md:p-3 transition-all duration-200 text-white flex items-center justify-center',
+              isAudioEnabled ? 'bg-[#334155] hover:bg-[#475569]' : 'bg-red-600 hover:bg-red-500',
+            ].join(' ')}
+          >
+            <MicIcon muted={!isAudioEnabled} />
+          </div>
+          <span className="hidden md:block text-[11px] font-medium text-slate-300 mt-1 select-none">
+            {isAudioEnabled ? 'Silenciar' : 'Activar mic'}
+          </span>
         </button>
 
+        {/* Camera Button */}
         <button
           onClick={onToggleVideo}
-          className={[
-            'flex min-w-[80px] flex-col items-center justify-center gap-1 rounded-full px-3 py-2 transition',
-            isVideoEnabled ? 'bg-slate-700 hover:bg-slate-600' : 'bg-red-600 hover:bg-red-500',
-          ].join(' ')}
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
         >
-          <CameraIcon off={!isVideoEnabled} />
-          <span className="hidden text-[11px] font-semibold md:block">{isVideoEnabled ? 'Cam' : 'Off'}</span>
+          <div
+            className={[
+              'rounded-full p-2.5 md:p-3 transition-all duration-200 text-white flex items-center justify-center',
+              isVideoEnabled ? 'bg-[#334155] hover:bg-[#475569]' : 'bg-red-600 hover:bg-red-500',
+            ].join(' ')}
+          >
+            <CameraIcon off={!isVideoEnabled} />
+          </div>
+          <span className="hidden md:block text-[11px] font-medium text-slate-300 mt-1 select-none">
+            {isVideoEnabled ? 'Detener video' : 'Iniciar video'}
+          </span>
         </button>
 
+        {/* Screen Share Button */}
         <button
           onClick={onToggleScreenShare}
-          className={[
-            'flex min-w-[80px] flex-col items-center justify-center gap-1 rounded-full px-3 py-2 transition',
-            isScreenSharing ? 'bg-blue-600 hover:bg-blue-500' : 'bg-slate-700 hover:bg-slate-600',
-          ].join(' ')}
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
         >
-          <ScreenIcon active={isScreenSharing} />
-          <span className="hidden text-[11px] font-semibold md:block">{isScreenSharing ? 'Compartiendo' : 'Compartir'}</span>
+          <div
+            className={[
+              'rounded-full p-2.5 md:p-3 transition-all duration-200 text-white flex items-center justify-center',
+              isScreenSharing ? 'bg-blue-600 hover:bg-blue-500' : 'bg-[#334155] hover:bg-[#475569]',
+            ].join(' ')}
+          >
+            <ScreenIcon active={isScreenSharing} />
+          </div>
+          <span className="hidden md:block text-[11px] font-medium text-slate-300 mt-1 select-none">
+            {isScreenSharing ? 'Compartiendo' : 'Presentar'}
+          </span>
         </button>
 
+        {/* People Button */}
         <button
           onClick={onTogglePeople}
-          className={[
-            'relative flex min-w-[80px] flex-col items-center justify-center gap-1 rounded-full border px-3 py-2 transition',
-            peopleOpen ? 'border-blue-500 bg-blue-500/20' : 'border-transparent bg-slate-700 hover:bg-slate-600',
-          ].join(' ')}
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
         >
-          <span className="absolute -top-1 right-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{participantCount}</span>
-          <PeopleIcon />
-          <span className="hidden text-[11px] font-semibold md:block">Personas</span>
+          <div
+            className={[
+              'relative rounded-full p-2.5 md:p-3 transition-all duration-200 text-white flex items-center justify-center',
+              peopleOpen
+                ? 'bg-blue-600/20 border border-blue-600'
+                : 'border border-transparent bg-[#334155] hover:bg-[#475569]',
+            ].join(' ')}
+          >
+            {participantCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-md">
+                {participantCount}
+              </span>
+            )}
+            <PeopleIcon />
+          </div>
+          <span className="hidden md:block text-[11px] font-medium text-slate-300 mt-1 select-none">
+            Personas
+          </span>
         </button>
 
+        {/* Chat Button */}
         <button
           onClick={onToggleChat}
-          className={[
-            'relative flex min-w-[80px] flex-col items-center justify-center gap-1 rounded-full border px-3 py-2 transition',
-            chatOpen ? 'border-blue-500 bg-blue-500/20' : 'border-transparent bg-slate-700 hover:bg-slate-600',
-          ].join(' ')}
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
         >
-          {unreadChatCount > 0 && !chatOpen && (
-            <span className="absolute -top-1 right-2 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              {unreadChatCount}
-            </span>
-          )}
-          <ChatIcon />
-          <span className="hidden text-[11px] font-semibold md:block">Chat</span>
+          <div
+            className={[
+              'relative rounded-full p-2.5 md:p-3 transition-all duration-200 text-white flex items-center justify-center',
+              chatOpen
+                ? 'bg-blue-600/20 border border-blue-600'
+                : 'border border-transparent bg-[#334155] hover:bg-[#475569]',
+            ].join(' ')}
+          >
+            {unreadChatCount > 0 && !chatOpen && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-md animate-pulse">
+                {unreadChatCount}
+              </span>
+            )}
+            <ChatIcon />
+          </div>
+          <span className="hidden md:block text-[11px] font-medium text-slate-300 mt-1 select-none">
+            Chat
+          </span>
         </button>
+      </div>
 
+      {/* Right Controls / Salir Button */}
+      <div className="flex-1 flex items-center justify-end">
         <button
           onClick={onLeave}
-          className="ml-auto flex min-w-[80px] flex-col items-center justify-center gap-1 rounded-full bg-red-600 px-3 py-2 transition hover:bg-red-500"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
         >
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 17l5-5-5-5" />
-            <path d="M15 12H3" />
-            <path d="M21 3v18" />
-          </svg>
-          <span className="hidden text-[11px] font-semibold md:block">Salir</span>
+          <div className="rounded-full p-2.5 md:p-3 bg-red-600 hover:bg-red-500 transition-all duration-200 text-white flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </div>
+          <span className="hidden md:block text-[11px] font-medium text-red-300 mt-1 select-none">
+            Salir
+          </span>
         </button>
       </div>
     </footer>

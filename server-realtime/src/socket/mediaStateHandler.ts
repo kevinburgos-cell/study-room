@@ -10,12 +10,13 @@ type MediaStatePayload = {
 export function registerMediaStateHandler(io: Server, socket: Socket) {
   socket.on('media-state-changed', (payload: MediaStatePayload) => {
     const { roomId, audioEnabled, videoEnabled, isScreenSharing = false } = payload;
-    const uid = (socket as any).uid;
-    const username = (socket as any).username || 'Estudiante';
+    const uid = socket.data?.uid || (socket as any).uid;
+    const username = socket.data?.username || (socket as any).username || 'Estudiante';
 
-    (socket as any).audioEnabled = audioEnabled;
-    (socket as any).videoEnabled = videoEnabled;
-    (socket as any).isScreenSharing = isScreenSharing;
+    // Store on socket.data so roomHandler's emitExistingPeers can read it
+    socket.data.audioEnabled = audioEnabled;
+    socket.data.videoEnabled = videoEnabled;
+    socket.data.isScreenSharing = isScreenSharing;
 
     console.log(
       `[Socket-Media] ${socket.id} (${uid}) in room ${roomId}: audio=${audioEnabled}, video=${videoEnabled}, screen=${isScreenSharing}`

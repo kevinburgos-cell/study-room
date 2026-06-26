@@ -104,6 +104,11 @@ export default function RoomPage() {
     continueWithoutVideo,
   } = useWebRTC(id, onlineUsers);
 
+  const onToggleScreenShare = async () => {
+    if (isScreenSharing) await stopScreenShare();
+    else await startScreenShare();
+  };
+
   const peerMediaStates = usePeerMediaState();
   const hasMountedRoom = useMemo(() => Boolean(room && user), [room, user]);
   const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
@@ -219,7 +224,7 @@ export default function RoomPage() {
         onLeave={handleExitClick}
       />
 
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="relative flex min-h-0 flex-1 overflow-hidden bg-black">
           <div className="relative flex min-h-0 flex-1">
             {shouldShowPermissionPanel ? (
@@ -239,7 +244,7 @@ export default function RoomPage() {
             )}
 
             {isDesktop && shouldRenderDesktopPeople && (
-              <div className={`absolute top-4 z-20 ${chatOpen ? 'right-[340px]' : 'right-4'}`} data-participants-panel>
+              <div className={`absolute top-[72px] z-20 transition-all duration-300 ${chatOpen ? 'right-[336px]' : 'right-4'}`} data-participants-panel>
                 <ParticipantsPanel
                   members={onlineUsers}
                   hostUid={room!.hostUid}
@@ -256,11 +261,13 @@ export default function RoomPage() {
             <aside
               data-chat-panel
               className={[
-                'h-full shrink-0 overflow-hidden border-l border-slate-700 bg-slate-800 transition-all duration-300 ease-in-out',
-                shouldRenderDesktopChat ? 'w-[320px] translate-x-0 opacity-100' : 'w-0 translate-x-full opacity-0',
+                'h-full shrink-0 overflow-hidden transition-all duration-300 ease-in-out',
+                shouldRenderDesktopChat ? 'w-[320px]' : 'w-0',
               ].join(' ')}
             >
-              <ChatPanel roomId={room!.id} open={chatOpen} onClose={() => setChatOpen(false)} />
+              <div className={`h-full w-[320px] transition-transform duration-300 ease-in-out transform ${shouldRenderDesktopChat ? 'translate-x-0' : 'translate-x-full'}`}>
+                <ChatPanel roomId={room!.id} open={chatOpen} onClose={() => setChatOpen(false)} />
+              </div>
             </aside>
           )}
         </div>
@@ -269,8 +276,8 @@ export default function RoomPage() {
           <div
             data-bottombar
             className={[
-              'transition-all duration-300 ease-in-out',
-              showControls || peopleOpen || chatOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0',
+              'transition-all duration-300 ease-in-out transform',
+              showControls || peopleOpen || chatOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none',
             ].join(' ')}
           >
             <RoomBottombar
@@ -283,10 +290,7 @@ export default function RoomPage() {
               participantCount={onlineUsers.length}
               onToggleAudio={toggleAudio}
               onToggleVideo={toggleVideo}
-              onToggleScreenShare={async () => {
-                if (isScreenSharing) await stopScreenShare();
-                else await startScreenShare();
-              }}
+              onToggleScreenShare={onToggleScreenShare}
               onTogglePeople={() => {
                 setChatOpen(false);
                 setPeopleOpen((prev) => !prev);
@@ -310,19 +314,18 @@ export default function RoomPage() {
               participantCount={onlineUsers.length}
               onToggleAudio={toggleAudio}
               onToggleVideo={toggleVideo}
-              onToggleScreenShare={async () => {
-                if (isScreenSharing) await stopScreenShare();
-                else await startScreenShare();
-              }}
+              onToggleScreenShare={onToggleScreenShare}
               onTogglePeople={() => toggleMobileSheet('people')}
               onToggleChat={() => toggleMobileSheet('chat')}
               onLeave={handleExitClick}
             />
 
             {mobileSheetOpen && (
-              <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setMobileSheet('none')}>
+              <div className="fixed inset-0 z-40 bg-black/60 md:hidden transition-opacity duration-300" onClick={() => setMobileSheet('none')}>
                 <div
-                  className="absolute inset-x-0 bottom-0 max-h-[70vh]"
+                  className={`absolute inset-x-0 bottom-0 overflow-hidden transition-all duration-300 ease-in-out transform ${
+                    mobileSheet === 'chat' ? 'h-[70vh]' : 'h-[50vh]'
+                  }`}
                   onClick={(e) => e.stopPropagation()}
                   data-mobile-sheet
                 >

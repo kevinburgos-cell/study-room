@@ -30,76 +30,133 @@ export default function VideoGrid({
 }: VideoGridProps) {
   const peerList = Array.from(peers.entries());
   const totalParticipants = 1 + peerList.length;
-  const screenSharingPeer = peerList.find(([socketId, peerInfo]) => {
-    const mediaState = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
-    return Boolean(mediaState?.isScreenSharing);
-  });
-  const hasScreenShare = Boolean(screenSharingPeer);
-  const gridClass = getGridClass(totalParticipants);
+
   const localMediaState = {
     audioEnabled: !isLocalMuted,
     videoEnabled: !isLocalCameraOff,
+    isScreenSharing: Boolean(mediaStates?.get(localUser.uid)?.isScreenSharing),
   };
 
-  if (hasScreenShare && screenSharingPeer) {
-    const [sharingSocketId, sharingPeer] = screenSharingPeer;
-    const sharingMedia = mediaStates?.get(sharingSocketId) ?? mediaStates?.get(sharingPeer.uid);
-    const sidePeers = peerList.filter(([socketId]) => socketId !== sharingSocketId);
+  const isLocalScreenSharing = localMediaState.isScreenSharing;
+  const sharingPeer = peerList.find(([socketId, peerInfo]) => {
+    const mediaState = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
+    return Boolean(mediaState?.isScreenSharing);
+  });
 
+  const hasScreenShare = isLocalScreenSharing || Boolean(sharingPeer);
+
+  // 1 Person layout
+  if (totalParticipants === 1 && !hasScreenShare) {
     return (
-      <div className={`relative h-full w-full ${className}`}>
-        <div className="grid h-full w-full gap-2 overflow-hidden p-2 md:grid-cols-[2fr_1fr]">
-          <div className="min-h-0">
-            <VideoTile
-              stream={sharingPeer.stream}
-              username={sharingPeer.username}
-              mediaState={sharingMedia}
-              isScreenSharing
-            />
-          </div>
-
-          <div className="grid min-h-0 grid-cols-2 gap-2 overflow-y-auto md:grid-cols-1">
-            <div className="min-h-[120px]">
-              <VideoTile
-                stream={localStream}
-                username={localUser.username}
-                isLocal
-                mediaState={localMediaState}
-                photoURL={localUser.photoURL}
-              />
-            </div>
-
-            {sidePeers.map(([socketId, peerInfo]) => {
-              const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
-              return (
-                <div key={socketId} className="min-h-[120px]">
-                  <VideoTile stream={peerInfo.stream} username={peerInfo.username} mediaState={peerMedia} />
-                </div>
-              );
-            })}
+      <div className={`flex h-full w-full items-center justify-center bg-black p-2 ${className}`}>
+        <div className="relative w-full max-w-[800px] aspect-video flex items-center justify-center">
+          <VideoTile
+            stream={localStream}
+            username={localUser.username}
+            isLocal
+            mediaState={localMediaState}
+            photoURL={localUser.photoURL}
+          />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-lg bg-black/20">
+            <span className="text-slate-300 text-sm md:text-base font-normal bg-black/60 px-4 py-2 rounded-full backdrop-blur-sm">
+              Esperando que otros se unan...
+            </span>
           </div>
         </div>
       </div>
     );
   }
 
+  // Screen Share Layout
+  if (hasScreenShare) {
+    let screenShareStream: MediaStream | null = null;
+    let screenShareUser = '';
+    let screenShareMedia: PeerMediaState | undefined;
+    let sidePeersList: Array<{ stream: MediaStream | null; username: string; isLocal: boolean; mediaState: any; photoURL?: string | null; id: string }> = [];
+
+    if (isLocalScreenSharing) {
+      screenShareStream = localStream;
+      screenShareUser = localUser.username;
+      screenShareMedia = localMediaState;
+      sidePeersList = peerList.map(([socketId, peerInfo]) => ({
+        id: socketId,
+        stream: peerInfo.stream,
+        username: peerInfo.username,
+        isLocal: false,
+        mediaState: mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid),
+      }));
+    } else if (sharingPeer) {
+      const [sharingSocketId, sharingPeerInfo] = sharingPeer;
+      screenShareStream = sharingPeerInfo.stream;
+      screenShareUser = sharingPeerInfo.username;
+      screenShareMedia = mediaStates?.get(sharingSocketId) ?? mediaStates?.get(sharingPeerInfo.uid);
+
+      sidePeersList = [
+        {
+          id: 'local',
+          stream: localStream,
+          username: localUser.username,
+          isLocal: true,
+          mediaState: localMediaState,
+          photoURL: localUser.photoURL,
+        },
+        ...peerList
+          .filter(([socketId]) => socketId !== sharingSocketId)
+          .map(([socketId, peerInfo]) => ({
+            id: socketId,
+            stream: peerInfo.stream,
+            username: peerInfo.username,
+            isLocal: false,
+            mediaState: mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid),
+          })),
+      ];
+    }
+
+    return (
+      <div className={`relative h-full w-full bg-black ${className}`}>
+        <div className="grid h-full w-full gap-2 p-2 grid-cols-1 md:grid-cols-[2fr_1fr] overflow-hidden">
+          {/* Main Sharing Tile */}
+          <div className="min-h-0 h-[60vh] md:h-auto">
+            <VideoTile
+              stream={screenShareStream}
+              username={screenShareUser}
+              mediaState={screenShareMedia}
+              isScreenSharing
+            />
+          </div>
+
+          {/* Sidebar Tiles */}
+          <div className="grid min-h-0 grid-cols-2 md:grid-cols-1 gap-2 overflow-y-auto content-start">
+            {sidePeersList.map((peer) => (
+              <div key={peer.id} className="aspect-video">
+                <VideoTile
+                  stream={peer.stream}
+                  username={peer.username}
+                  isLocal={peer.isLocal}
+                  mediaState={peer.mediaState}
+                  photoURL={peer.photoURL}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard layouts: 2, 3-4, 5+
+  let layoutClasses = 'grid-cols-1 md:grid-cols-2 grid-rows-2 md:grid-rows-1'; // Default 2 people layout
+  if (totalParticipants >= 3 && totalParticipants <= 4) {
+    layoutClasses = 'grid-cols-2 grid-rows-2';
+  } else if (totalParticipants >= 5) {
+    layoutClasses = 'grid-cols-2 md:grid-cols-3 overflow-y-auto';
+  }
+
   return (
-    <div className={`relative h-full w-full ${className}`}>
-      <div
-        className={[
-          'grid h-full w-full gap-2 overflow-y-auto p-2',
-          gridClass,
-          totalParticipants === 1 ? 'justify-items-center' : '',
-        ].join(' ')}
-      >
-        <div
-          className={[
-            'w-full',
-            totalParticipants === 1 ? 'max-w-[800px]' : '',
-            totalParticipants === 2 ? 'aspect-video' : '',
-            totalParticipants >= 5 ? 'min-h-[180px]' : '',
-          ].join(' ')}
-        >
+    <div className={`relative h-full w-full bg-black ${className}`}>
+      <div className={`grid h-full w-full gap-2 p-2 ${layoutClasses}`}>
+        {/* Local user tile */}
+        <div className="w-full h-full min-h-[140px]">
           <VideoTile
             stream={localStream}
             username={localUser.username}
@@ -109,37 +166,20 @@ export default function VideoGrid({
           />
         </div>
 
+        {/* Peer tiles */}
         {peerList.map(([socketId, peerInfo]) => {
           const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
-          const isScreenSharing = Boolean(peerMedia?.isScreenSharing);
           return (
-            <div
-              key={socketId}
-              className={[
-                'w-full',
-                isScreenSharing ? 'md:col-span-2 md:min-h-[55vh]' : '',
-                totalParticipants === 2 ? 'aspect-video' : '',
-                totalParticipants >= 5 ? 'min-h-[180px]' : '',
-              ].join(' ')}
-            >
+            <div key={socketId} className="w-full h-full min-h-[140px]">
               <VideoTile
                 stream={peerInfo.stream}
                 username={peerInfo.username}
                 mediaState={peerMedia}
-                isScreenSharing={isScreenSharing}
               />
             </div>
           );
         })}
       </div>
-
-      {totalParticipants === 1 && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="rounded-full bg-black/45 px-4 py-2 text-sm text-slate-200 backdrop-blur">
-            Esperando que otros se unan...
-          </div>
-        </div>
-      )}
     </div>
   );
 }

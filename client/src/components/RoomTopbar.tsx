@@ -18,28 +18,22 @@ function PeopleIcon() {
   );
 }
 
-export default function RoomTopbar({ roomName, elapsedTime, participantCount, onLeave }: RoomTopbarProps) {
+export default function RoomTopbar({ roomName, elapsedTime, participantCount }: Omit<RoomTopbarProps, 'onLeave'> & { onLeave?: () => void }) {
   return (
-    <header className="flex h-14 shrink-0 items-center border-b border-slate-700 bg-slate-800 px-4 text-white">
-      <div className="flex flex-1 items-center gap-3">
-        <h1 className="truncate text-base font-semibold">{roomName}</h1>
+    <header className="flex h-[56px] shrink-0 items-center bg-[#1E293B] px-4 text-white">
+      <div className="flex flex-1 items-center">
+        <h1 className="truncate text-base font-semibold text-white">{roomName}</h1>
       </div>
 
-      <div className="hidden flex-1 items-center justify-center text-sm text-slate-300 md:flex">
+      <div className="flex flex-1 items-center justify-center text-sm text-slate-400 font-mono">
         {elapsedTime}
       </div>
 
-      <div className="flex flex-1 items-center justify-end gap-3">
-        <div className="hidden items-center gap-2 rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-200 md:flex">
+      <div className="flex flex-1 items-center justify-end">
+        <div className="flex items-center gap-2 text-slate-300">
           <PeopleIcon />
-          <span>{participantCount}</span>
+          <span className="text-sm font-medium">{participantCount}</span>
         </div>
-        <button
-          onClick={onLeave}
-          className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
-        >
-          Salir
-        </button>
       </div>
     </header>
   );
