@@ -20,6 +20,16 @@ function MicOffIcon() {
   );
 }
 
+function VideoOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 1l22 22" />
+      <path d="M15 8l5-3v14l-5-3" />
+      <rect x="3" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+
 export default function MembersSidebar({ members, hostUid, currentUserUid, mediaStates, isConnecting }: MembersSidebarProps) {
   const getInitials = (username: string) => (username ? username.substring(0, 2).toUpperCase() : '??');
 
@@ -110,6 +120,11 @@ export default function MembersSidebar({ members, hostUid, currentUserUid, media
                   {mediaState?.audioEnabled === false && (
                     <span title="Silenciado" style={{ color: '#ef4444', display: 'inline-flex', alignItems: 'center' }}>
                       <MicOffIcon />
+                    </span>
+                  )}
+                  {mediaState?.videoEnabled === false && (
+                    <span title="Cámara apagada" style={{ color: '#94a3b8', display: 'inline-flex', alignItems: 'center' }}>
+                      <VideoOffIcon />
                     </span>
                   )}
                 </div>

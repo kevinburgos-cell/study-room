@@ -54,7 +54,7 @@ export default function ParticipantsPanel({ members, hostUid, currentUserUid, me
         {members.map((member) => {
           const isMe = member.uid === currentUserUid;
           const isHost = member.uid === hostUid;
-          const mediaState = mediaStates?.get(member.uid) ?? mediaStates?.get(member.uid);
+          const mediaState = mediaStates?.get(member.uid);
           return (
             <div key={member.uid} className="flex items-center gap-3 rounded-xl bg-[#334155]/20 hover:bg-[#334155]/40 p-3 transition-colors duration-150">
               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#334155] text-sm font-semibold text-white ring-1 ring-white/10">
@@ -93,7 +93,7 @@ export default function ParticipantsPanel({ members, hostUid, currentUserUid, me
         {members.map((member) => {
           const isMe = member.uid === currentUserUid;
           const isHost = member.uid === hostUid;
-          const mediaState = mediaStates?.get(member.uid) ?? mediaStates?.get(member.uid);
+          const mediaState = mediaStates?.get(member.uid);
           return (
             <div key={member.uid} className="flex items-center gap-3 rounded-xl bg-[#334155]/20 hover:bg-[#334155]/40 p-2.5 transition-colors duration-150">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#334155] text-xs font-semibold text-white ring-1 ring-white/10">

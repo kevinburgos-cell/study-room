@@ -9,6 +9,7 @@ interface VideoGridProps {
   mediaStates?: Map<string, PeerMediaState>;
   isLocalMuted?: boolean;
   isLocalCameraOff?: boolean;
+  isLocalScreenSharing?: boolean;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ export default function VideoGrid({
   mediaStates,
   isLocalMuted = false,
   isLocalCameraOff = false,
+  isLocalScreenSharing = false,
   className = '',
 }: VideoGridProps) {
   const peerList = Array.from(peers.entries());
@@ -34,16 +36,16 @@ export default function VideoGrid({
   const localMediaState = {
     audioEnabled: !isLocalMuted,
     videoEnabled: !isLocalCameraOff,
-    isScreenSharing: Boolean(mediaStates?.get(localUser.uid)?.isScreenSharing),
+    isScreenSharing: isLocalScreenSharing,
   };
 
-  const isLocalScreenSharing = localMediaState.isScreenSharing;
+  const localSharingActive = localMediaState.isScreenSharing;
   const sharingPeer = peerList.find(([socketId, peerInfo]) => {
     const mediaState = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
     return Boolean(mediaState?.isScreenSharing);
   });
 
-  const hasScreenShare = isLocalScreenSharing || Boolean(sharingPeer);
+  const hasScreenShare = localSharingActive || Boolean(sharingPeer);
 
   // 1 Person layout
   if (totalParticipants === 1 && !hasScreenShare) {
@@ -74,7 +76,7 @@ export default function VideoGrid({
     let screenShareMedia: PeerMediaState | undefined;
     let sidePeersList: Array<{ stream: MediaStream | null; username: string; isLocal: boolean; mediaState: any; photoURL?: string | null; id: string }> = [];
 
-    if (isLocalScreenSharing) {
+    if (localSharingActive) {
       screenShareStream = localStream;
       screenShareUser = localUser.username;
       screenShareMedia = localMediaState;

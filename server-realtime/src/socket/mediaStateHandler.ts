@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import { connectedUsers } from './roomHandler';
 
 type MediaStatePayload = {
   roomId: string;
@@ -17,6 +18,15 @@ export function registerMediaStateHandler(io: Server, socket: Socket) {
     socket.data.audioEnabled = audioEnabled;
     socket.data.videoEnabled = videoEnabled;
     socket.data.isScreenSharing = isScreenSharing;
+
+    if (connectedUsers[roomId]) {
+      const user = connectedUsers[roomId].find((u) => u.socketId === socket.id);
+      if (user) {
+        user.audioEnabled = audioEnabled;
+        user.videoEnabled = videoEnabled;
+        user.isScreenSharing = isScreenSharing;
+      }
+    }
 
     console.log(
       `[Socket-Media] ${socket.id} (${uid}) in room ${roomId}: audio=${audioEnabled}, video=${videoEnabled}, screen=${isScreenSharing}`

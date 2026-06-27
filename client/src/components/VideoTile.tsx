@@ -32,53 +32,52 @@ export default function VideoTile({
   const audioEnabled = mediaState?.audioEnabled ?? true;
   const videoEnabled = mediaState?.videoEnabled ?? true;
   const sharing = mediaState?.isScreenSharing ?? isScreenSharing;
-  const showAvatar = !stream || !videoEnabled || sharing;
+  const showAvatar = !stream || (!videoEnabled && !sharing);
 
   useEffect(() => {
     if (videoRef.current && stream && !showAvatar) {
       videoRef.current.srcObject = stream;
-    } else if (videoRef.current) {
-      videoRef.current.srcObject = null;
     }
   }, [stream, showAvatar]);
 
-  const initials = username ? username.slice(0, 2).toUpperCase() : 'U';
+  const initial = username ? username[0].toUpperCase() : 'U';
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg bg-black shadow-[0_18px_40px_rgba(2,6,23,0.42)]">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted={isLocal}
-        className={[
-          'h-full w-full object-cover transition-opacity duration-300',
-          isLocal ? 'scale-x-[-1]' : '',
-          showAvatar ? 'opacity-0' : 'opacity-100',
-        ].join(' ')}
-      />
+      {!showAvatar && (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={isLocal}
+          className={[
+            'h-full w-full object-cover',
+            isLocal && !sharing ? 'scale-x-[-1]' : '',
+          ].join(' ')}
+        />
+      )}
 
       {showAvatar && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1E293B]">
           {photoURL ? (
-            <img src={photoURL} alt={username} className="mb-3 h-20 w-20 rounded-full object-cover ring-2 ring-white/10" />
+            <img src={photoURL} alt={username} className="h-16 w-16 rounded-full object-cover ring-2 ring-white/10" />
           ) : (
-            <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-slate-600 text-2xl font-bold text-white ring-2 ring-white/10">
-              {initials}
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
+              {initial}
             </div>
           )}
-          <span className="text-sm text-slate-300 font-medium">{sharing ? 'Compartiendo pantalla' : 'Cámara apagada'}</span>
+          <span className="mt-2 text-sm font-medium text-white">{username}</span>
         </div>
       )}
 
-      {sharing && !isLocal && (
+      {sharing && (
         <div className="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white shadow-lg">
           Compartiendo pantalla
         </div>
       )}
 
       {isLocal && (
-        <div className="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
+        <div className={`absolute left-2 ${sharing ? 'top-9' : 'top-2'} rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white`}>
           Tú
         </div>
       )}

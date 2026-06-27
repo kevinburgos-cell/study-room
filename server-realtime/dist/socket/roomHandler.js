@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.connectedUsers = void 0;
 exports.registerRoomHandlers = registerRoomHandlers;
 const verifyToken_1 = require("../middlewares/verifyToken");
 // In-memory storage for users in each room
-const connectedUsers = {};
+exports.connectedUsers = {};
 function registerRoomHandlers(io, socket) {
     const emitExistingPeers = (roomId) => {
-        const peersList = connectedUsers[roomId]
+        const peersList = exports.connectedUsers[roomId]
             .filter((u) => u.socketId !== socket.id)
             .map((u) => {
             const peerSocket = io.sockets.sockets.get(u.socketId);
@@ -14,9 +15,9 @@ function registerRoomHandlers(io, socket) {
                 socketId: u.socketId,
                 uid: u.uid,
                 username: u.username,
-                audioEnabled: Boolean(peerSocket?.audioEnabled ?? true),
-                videoEnabled: Boolean(peerSocket?.videoEnabled ?? true),
-                isScreenSharing: Boolean(peerSocket?.isScreenSharing),
+                audioEnabled: Boolean(peerSocket?.data?.audioEnabled ?? u.audioEnabled ?? true),
+                videoEnabled: Boolean(peerSocket?.data?.videoEnabled ?? u.videoEnabled ?? true),
+                isScreenSharing: Boolean(peerSocket?.data?.isScreenSharing ?? u.isScreenSharing),
             };
         });
         console.log(`[Socket-Room] Emitting existing-peers list for ${socket.id}:`, JSON.stringify(peersList));
@@ -46,18 +47,21 @@ function registerRoomHandlers(io, socket) {
             socket.data.audioEnabled = true;
             socket.data.videoEnabled = true;
             socket.data.isScreenSharing = false;
-            if (!connectedUsers[roomId]) {
-                connectedUsers[roomId] = [];
+            if (!exports.connectedUsers[roomId]) {
+                exports.connectedUsers[roomId] = [];
             }
             // Remove previous connections of the same user in this room to avoid duplicates
-            connectedUsers[roomId] = connectedUsers[roomId].filter((u) => u.uid !== uid);
+            exports.connectedUsers[roomId] = exports.connectedUsers[roomId].filter((u) => u.uid !== uid);
             const newUser = {
                 uid,
                 username,
                 photoURL,
                 socketId: socket.id,
+                audioEnabled: true,
+                videoEnabled: true,
+                isScreenSharing: false,
             };
-            connectedUsers[roomId].push(newUser);
+            exports.connectedUsers[roomId].push(newUser);
             // Notify others in room
             socket.to(roomId).emit('user-joined', {
                 uid: newUser.uid,
@@ -66,7 +70,7 @@ function registerRoomHandlers(io, socket) {
             });
             // Send the current list of online users to the joining client
             socket.emit('room-users', {
-                users: connectedUsers[roomId].map(({ uid, username, photoURL }) => ({
+                users: exports.connectedUsers[roomId].map(({ uid, username, photoURL }) => ({
                     uid,
                     username,
                     photoURL,
@@ -87,10 +91,10 @@ function registerRoomHandlers(io, socket) {
         if (!roomId)
             return;
         setTimeout(() => {
-            if (socket.connected && connectedUsers[roomId]?.some((u) => u.socketId !== socket.id)) {
+            if (socket.connected && exports.connectedUsers[roomId]?.some((u) => u.socketId !== socket.id)) {
                 emitExistingPeers(roomId);
             }
-            else if (socket.connected && connectedUsers[roomId]) {
+            else if (socket.connected && exports.connectedUsers[roomId]) {
                 emitExistingPeers(roomId);
             }
         }, 500);
@@ -102,9 +106,9 @@ function registerRoomHandlers(io, socket) {
             return;
         socket.leave(roomId);
         // Clean up memory
-        if (connectedUsers[roomId]) {
-            const userLeaving = connectedUsers[roomId].find((u) => u.socketId === socket.id);
-            connectedUsers[roomId] = connectedUsers[roomId].filter((u) => u.socketId !== socket.id);
+        if (exports.connectedUsers[roomId]) {
+            const userLeaving = exports.connectedUsers[roomId].find((u) => u.socketId === socket.id);
+            exports.connectedUsers[roomId] = exports.connectedUsers[roomId].filter((u) => u.socketId !== socket.id);
             if (userLeaving) {
                 socket.to(roomId).emit('user-left', {
                     uid: userLeaving.uid,
@@ -112,8 +116,8 @@ function registerRoomHandlers(io, socket) {
                 });
                 console.log(`[Socket] User ${userLeaving.username} left room ${roomId}`);
             }
-            if (connectedUsers[roomId].length === 0) {
-                delete connectedUsers[roomId];
+            if (exports.connectedUsers[roomId].length === 0) {
+                delete exports.connectedUsers[roomId];
             }
         }
         delete socket.data.roomId;
@@ -135,18 +139,18 @@ function registerRoomHandlers(io, socket) {
     // 4. Disconnect Event (automatic)
     socket.on('disconnect', () => {
         // Search across all rooms to remove this socket and notify others
-        for (const roomId in connectedUsers) {
-            const idx = connectedUsers[roomId].findIndex((u) => u.socketId === socket.id);
+        for (const roomId in exports.connectedUsers) {
+            const idx = exports.connectedUsers[roomId].findIndex((u) => u.socketId === socket.id);
             if (idx !== -1) {
-                const userLeaving = connectedUsers[roomId][idx];
-                connectedUsers[roomId].splice(idx, 1);
+                const userLeaving = exports.connectedUsers[roomId][idx];
+                exports.connectedUsers[roomId].splice(idx, 1);
                 io.to(roomId).emit('user-left', {
                     uid: userLeaving.uid,
                     username: userLeaving.username,
                 });
                 console.log(`[Socket] User ${userLeaving.username} disconnected from room ${roomId}`);
-                if (connectedUsers[roomId].length === 0) {
-                    delete connectedUsers[roomId];
+                if (exports.connectedUsers[roomId].length === 0) {
+                    delete exports.connectedUsers[roomId];
                 }
             }
         }

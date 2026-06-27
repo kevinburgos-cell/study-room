@@ -18,10 +18,6 @@ interface MediaStatePayload {
   isScreenSharing?: boolean;
 }
 
-/**
- * Pausa o reanuda el audio local sin cerrar la conexión WebRTC.
- * Usa `track.enabled` en vez de `stop()` para preservar el `peerConnection`.
- */
 export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string; username: string }[]) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<Map<string, PeerInfo>>(new Map());
@@ -99,6 +95,17 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     };
   }, [roomId, syncCurrentMediaState]);
 
+  const getOutboundStream = useCallback((fallbackStream: MediaStream | null) => {
+    if (!isScreenSharingRef.current || !screenStreamRef.current) {
+      return fallbackStream;
+    }
+
+    const outboundStream = new MediaStream();
+    screenStreamRef.current.getVideoTracks().forEach((track) => outboundStream.addTrack(track));
+    cameraStreamRef.current?.getAudioTracks().forEach((track) => outboundStream.addTrack(track));
+    return outboundStream;
+  }, []);
+
   const closeConnection = useCallback((socketId: string) => {
     const pc = peerConnectionsRef.current.get(socketId);
     if (pc) {
@@ -131,6 +138,9 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       setIsAudioEnabled(withAudio);
       setIsVideoEnabled(withVideo);
       setIsScreenSharing(false);
+      isAudioEnabledRef.current = withAudio;
+      isVideoEnabledRef.current = withVideo;
+      isScreenSharingRef.current = false;
       emitMediaState({
         audioEnabled: withAudio,
         videoEnabled: withVideo,
@@ -171,9 +181,10 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       peerConnectionsRef.current.set(targetSocketId, pc);
 
-      if (stream) {
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-        console.log(`[useWebRTC] Added ${stream.getTracks().length} local track(s) for ${peerUsername}`);
+      const outboundStream = getOutboundStream(stream);
+      if (outboundStream) {
+        outboundStream.getTracks().forEach((track) => pc.addTrack(track, outboundStream));
+        console.log(`[useWebRTC] Added ${outboundStream.getTracks().length} local track(s) for ${peerUsername}`);
       }
 
       pc.onicecandidate = (event) => {
@@ -211,7 +222,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
 
       return pc;
     },
-    [closeConnection]
+    [closeConnection, getOutboundStream]
   );
 
   useEffect(() => {
@@ -278,22 +289,25 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     };
 
     const handleMediaState = (payload: {
-      fromSocketId: string;
+      socketId?: string;
+      fromSocketId?: string;
       audioEnabled: boolean;
       videoEnabled: boolean;
       isScreenSharing?: boolean;
     }) => {
+      const socketId = payload.socketId ?? payload.fromSocketId;
+      if (!socketId) return;
       const nextState = {
         audioEnabled: payload.audioEnabled,
         videoEnabled: payload.videoEnabled,
         isScreenSharing: Boolean(payload.isScreenSharing),
       };
-      remoteMediaStatesRef.current.set(payload.fromSocketId, nextState);
+      remoteMediaStatesRef.current.set(socketId, nextState);
       setPeers((prev) => {
-        const peer = prev.get(payload.fromSocketId);
+        const peer = prev.get(socketId);
         if (!peer) return prev;
         const next = new Map(prev);
-        next.set(payload.fromSocketId, peer);
+        next.set(socketId, peer);
         return next;
       });
     };
@@ -349,47 +363,77 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     };
   }, []);
 
+  /**
+   * Pausa o reanuda el audio local sin cerrar la conexión WebRTC.
+   * Usa `track.enabled` en vez de `track.stop()` para preservar el stream.
+   */
   const toggleAudio = useCallback(() => {
-    const track = localStreamRef.current?.getAudioTracks()[0];
-    if (!track) return;
-    track.enabled = !track.enabled;
-    console.log('Connection state after track change:', Array.from(peerConnectionsRef.current.values())[0]?.connectionState ?? 'unknown');
+    const tracks = localStreamRef.current?.getAudioTracks() ?? [];
+    if (tracks.length === 0) return;
+    const nextAudioEnabled = !isAudioEnabledRef.current;
+    tracks.forEach((track) => {
+      track.enabled = nextAudioEnabled;
+    });
+    console.log('[WebRTC] Audio toggled:', nextAudioEnabled);
+    for (const [id, pc] of peerConnectionsRef.current) {
+      console.log('[WebRTC] Connection state after mute:', id, pc.connectionState);
+    }
     const nextState = {
-      audioEnabled: track.enabled,
+      audioEnabled: nextAudioEnabled,
       videoEnabled: isVideoEnabledRef.current,
       isScreenSharing: isScreenSharingRef.current,
     };
-    setIsAudioEnabled(track.enabled);
+    setIsAudioEnabled(nextAudioEnabled);
+    isAudioEnabledRef.current = nextAudioEnabled;
     emitMediaState(nextState);
   }, [emitMediaState]);
 
+  /**
+   * Activa o desactiva el video local sin renegociar WebRTC.
+   * Alterna `track.enabled` para que los peers vean avatar sin romper la conexión.
+   */
   const toggleVideo = useCallback(() => {
-    const track = localStreamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    track.enabled = !track.enabled;
-    console.log('Connection state after track change:', Array.from(peerConnectionsRef.current.values())[0]?.connectionState ?? 'unknown');
+    const tracks = localStreamRef.current?.getVideoTracks() ?? [];
+    if (tracks.length === 0) return;
+    const nextVideoEnabled = !isVideoEnabledRef.current;
+    tracks.forEach((track) => {
+      track.enabled = nextVideoEnabled;
+    });
+    console.log('[WebRTC] Video toggled:', nextVideoEnabled);
+    for (const [id, pc] of peerConnectionsRef.current) {
+      console.log('[WebRTC] Connection state after video toggle:', id, pc.connectionState);
+    }
     const nextState = {
       audioEnabled: isAudioEnabledRef.current,
-      videoEnabled: track.enabled,
+      videoEnabled: nextVideoEnabled,
       isScreenSharing: isScreenSharingRef.current,
     };
-    setIsVideoEnabled(track.enabled);
+    setIsVideoEnabled(nextVideoEnabled);
+    isVideoEnabledRef.current = nextVideoEnabled;
     emitMediaState(nextState);
   }, [emitMediaState]);
 
+  /**
+   * Inicia compartir pantalla reemplazando el track de video de cada sender.
+   * Usa `replaceTrack()` y no crea una nueva oferta WebRTC.
+   */
   const startScreenShare = useCallback(async () => {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const screenTrack = screenStream.getVideoTracks()[0];
       const cameraStream = cameraStreamRef.current || localStreamRef.current;
-      if (!screenTrack || !cameraStream) return;
+      if (!screenTrack || !cameraStream) {
+        screenStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       await Promise.all(
-        Array.from(peerConnectionsRef.current.values()).map(async (pc) => {
+        Array.from(peerConnectionsRef.current.entries()).map(async ([socketId, pc]) => {
           const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
           if (sender) {
             await sender.replaceTrack(screenTrack);
-            console.log('Connection state after track change:', pc.connectionState);
+            console.log('[WebRTC] Screen track replaced for peer:', socketId);
+            console.log('[WebRTC] ✅ Screen sharing started, connection state:', pc.connectionState);
           }
         })
       );
@@ -399,7 +443,9 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       };
 
       screenStreamRef.current = screenStream;
+      setLocalStream(screenStream);
       setIsScreenSharing(true);
+      isScreenSharingRef.current = true;
       emitMediaState({
         audioEnabled: isAudioEnabledRef.current,
         videoEnabled: isVideoEnabledRef.current,
@@ -410,10 +456,14 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         console.log('Usuario canceló compartir pantalla');
         return;
       }
-      throw err;
+      console.error('Error compartiendo pantalla:', err);
     }
   }, [emitMediaState]);
 
+  /**
+   * Detiene compartir pantalla y restaura el track original de la cámara.
+   * La restauración también usa `replaceTrack()` para evitar renegociación.
+   */
   const stopScreenShare = useCallback(async () => {
     const screenStream = screenStreamRef.current;
     const cameraStream = cameraStreamRef.current || localStreamRef.current;
@@ -422,18 +472,21 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     if (!cameraTrack) return;
 
     await Promise.all(
-      Array.from(peerConnectionsRef.current.values()).map(async (pc) => {
+      Array.from(peerConnectionsRef.current.entries()).map(async ([socketId, pc]) => {
         const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           await sender.replaceTrack(cameraTrack);
-          console.log('Connection state after track change:', pc.connectionState);
+          console.log('[WebRTC] Camera track restored for peer:', socketId);
+          console.log('[WebRTC] ✅ Screen sharing stopped, connection state:', pc.connectionState);
         }
       })
     );
 
     screenStream.getTracks().forEach((t) => t.stop());
     screenStreamRef.current = null;
+    setLocalStream(cameraStream);
     setIsScreenSharing(false);
+    isScreenSharingRef.current = false;
     emitMediaState({
       audioEnabled: isAudioEnabledRef.current,
       videoEnabled: isVideoEnabledRef.current,

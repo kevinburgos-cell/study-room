@@ -3,7 +3,7 @@ import { verifyFirebaseToken } from '../middlewares/verifyToken';
 import { ConnectedUser, JoinRoomPayload, LeaveRoomPayload } from '../types/socket.types';
 
 // In-memory storage for users in each room
-const connectedUsers: { [roomId: string]: ConnectedUser[] } = {};
+export const connectedUsers: { [roomId: string]: ConnectedUser[] } = {};
 
 export function registerRoomHandlers(io: Server, socket: Socket) {
   const emitExistingPeers = (roomId: string) => {
@@ -15,9 +15,9 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           socketId: u.socketId,
           uid: u.uid,
           username: u.username,
-          audioEnabled: Boolean((peerSocket as any)?.audioEnabled ?? true),
-          videoEnabled: Boolean((peerSocket as any)?.videoEnabled ?? true),
-          isScreenSharing: Boolean((peerSocket as any)?.isScreenSharing),
+          audioEnabled: Boolean(peerSocket?.data?.audioEnabled ?? u.audioEnabled ?? true),
+          videoEnabled: Boolean(peerSocket?.data?.videoEnabled ?? u.videoEnabled ?? true),
+          isScreenSharing: Boolean(peerSocket?.data?.isScreenSharing ?? u.isScreenSharing),
         };
       });
 
@@ -67,6 +67,9 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         username,
         photoURL,
         socketId: socket.id,
+        audioEnabled: true,
+        videoEnabled: true,
+        isScreenSharing: false,
       };
 
       connectedUsers[roomId].push(newUser);

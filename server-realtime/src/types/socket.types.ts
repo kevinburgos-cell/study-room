@@ -3,6 +3,9 @@ export interface ConnectedUser {
   username: string;
   photoURL: string | null;
   socketId: string;
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  isScreenSharing: boolean;
 }
 
 export interface JoinRoomPayload {

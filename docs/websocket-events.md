@@ -1,46 +1,34 @@
-# WebSocket Events
+# Eventos de Socket.io - StudyRoom
 
-| Evento | Dirección | Payload | Descripción |
-|--------|-----------|---------|-------------|
-| `join-room` | C→S | `{ roomId, token }` | Usuario entra a una sala |
-| `leave-room` | C→S | `{ roomId }` | Usuario sale de una sala |
-| `room-users` | S→C | `{ users[] }` | Lista inicial de usuarios |
-| `user-joined` | S→C | `{ uid, username, photoURL }` | Notifica nuevo usuario |
-| `user-left` | S→C | `{ uid, username }` | Notifica salida de usuario |
-| `send-message` | C→S | `{ roomId, text, token }` | Enviar mensaje de chat |
-| `new-message` | S→C | `{ id, roomId, senderUid, text, timestamp }` | Mensaje nuevo |
-| `existing-peers` | S→C | `{ peers[] }` | Peers para iniciar WebRTC |
-| `webrtc-offer` | C→S→C | `{ offer, targetSocketId }` | Oferta SDP |
-| `webrtc-answer` | C→S→C | `{ answer, targetSocketId }` | Respuesta SDP |
-| `webrtc-ice-candidate` | C→S→C | `{ candidate, targetSocketId }` | Candidato ICE |
-| `media-state-changed` | C→S | `{ roomId, audioEnabled, videoEnabled, isScreenSharing }` | Cambio de estado de medios |
-| `peer-media-state` | S→C | `{ uid, socketId, audioEnabled, videoEnabled, isScreenSharing }` | Notifica cambio a otros |
+## Sala
 
-## useWebRTC
+| Evento | Direccion | Payload |
+|--------|-----------|---------|
+| join-room | C->S | {roomId, token} |
+| leave-room | C->S | {roomId} |
+| room-users | S->C | {users[]} |
+| user-joined | S->C | {uid, username, photoURL} |
+| user-left | S->C | {uid, username} |
+| existing-peers | S->C | {peers[]} |
 
-Funciones públicas principales del hook:
+## Chat
 
-```ts
-/**
- * Pausa o reanuda el audio local sin cerrar la conexión WebRTC.
- * Usa `track.enabled` en vez de `stop()` para preservar el `peerConnection`.
- */
-toggleAudio()
+| Evento | Direccion | Payload |
+|--------|-----------|---------|
+| send-message | C->S | {roomId, text, token} |
+| new-message | S->C | {id, roomId, senderUid, senderUsername, text, timestamp} |
 
-/**
- * Activa o desactiva el video local sin renegociar la conexión.
- * Mantiene el track vivo y solo alterna `track.enabled`.
- */
-toggleVideo()
+## WebRTC Signaling
 
-/**
- * Inicia la compartición de pantalla reemplazando el track de video
- * de cada `RTCRtpSender` con `replaceTrack()`, sin renegociación.
- */
-startScreenShare()
+| Evento | Direccion | Payload |
+|--------|-----------|---------|
+| webrtc-offer | C->S->C | {offer, targetSocketId} |
+| webrtc-answer | C->S->C | {answer, targetSocketId} |
+| webrtc-ice-candidate | C->S->C | {candidate, targetSocketId} |
 
-/**
- * Restaura el video de cámara original después de compartir pantalla.
- */
-stopScreenShare()
-```
+## Estado de medios
+
+| Evento | Direccion | Payload |
+|--------|-----------|---------|
+| media-state-changed | C->S | {roomId, audioEnabled, videoEnabled, isScreenSharing} |
+| peer-media-state | S->C | {socketId, uid, audioEnabled, videoEnabled, isScreenSharing} |

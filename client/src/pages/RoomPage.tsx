@@ -110,9 +110,20 @@ export default function RoomPage() {
   };
 
   const peerMediaStates = usePeerMediaState();
+  const isMissingMediaDevice = permissionError === 'NotFoundError';
+  const roomMediaStates = useMemo(() => {
+    const next = new Map(peerMediaStates);
+    if (user) {
+      next.set(user.uid, {
+        audioEnabled: isAudioEnabled,
+        videoEnabled: isVideoEnabled && !isMissingMediaDevice,
+        isScreenSharing,
+      });
+    }
+    return next;
+  }, [peerMediaStates, user, isAudioEnabled, isVideoEnabled, isMissingMediaDevice, isScreenSharing]);
   const hasMountedRoom = useMemo(() => Boolean(room && user), [room, user]);
   const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
-  const isMissingMediaDevice = permissionError === 'NotFoundError';
   const shouldShowPermissionPanel = Boolean(permissionError && !isMissingMediaDevice);
 
   useEffect(() => {
@@ -236,9 +247,10 @@ export default function RoomPage() {
                 localStream={localStream}
                 localUser={{ uid: user!.uid, username: user!.username || 'Tú', photoURL: user!.photoURL || null }}
                 peers={peers}
-                mediaStates={peerMediaStates}
+                mediaStates={roomMediaStates}
                 isLocalMuted={!isAudioEnabled}
                 isLocalCameraOff={!isVideoEnabled || isMissingMediaDevice}
+                isLocalScreenSharing={isScreenSharing}
                 className="relative"
               />
             )}
@@ -249,7 +261,7 @@ export default function RoomPage() {
                   members={onlineUsers}
                   hostUid={room!.hostUid}
                   currentUserUid={user!.uid}
-                  mediaStates={peerMediaStates}
+                  mediaStates={roomMediaStates}
                   open
                   onClose={() => setPeopleOpen(false)}
                 />
@@ -336,7 +348,7 @@ export default function RoomPage() {
                       members={onlineUsers}
                       hostUid={room!.hostUid}
                       currentUserUid={user!.uid}
-                      mediaStates={peerMediaStates}
+                      mediaStates={roomMediaStates}
                       open
                       onClose={() => setMobileSheet('none')}
                       mobile
