@@ -17,3 +17,5 @@ export async function verifyFirebaseToken(token: string) {
     throw new Error('Token inválido o expirado');
   }
 }
+
+
