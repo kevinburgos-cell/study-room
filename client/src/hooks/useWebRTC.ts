@@ -295,12 +295,26 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       };
 
       pc.ontrack = (event) => {
-        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        console.log(`[WebRTC] ontrack received from: ${peerUsername}, track kind: ${event.track.kind}`);
         setPeers((prev) => {
+          const existingPeer = prev.get(targetSocketId);
+          let remoteStream = existingPeer?.stream;
+
+          if (!remoteStream) {
+            remoteStream = event.streams[0] || new MediaStream();
+          }
+
+          if (!remoteStream.getTracks().includes(event.track)) {
+            remoteStream.addTrack(event.track);
+          }
+
+          // Force a new MediaStream reference to trigger React updates and VideoTile rebind
+          const updatedStream = new MediaStream(remoteStream.getTracks());
+
           const next = new Map(prev);
           const current = next.get(targetSocketId);
           next.set(targetSocketId, {
-            stream: remoteStream,
+            stream: updatedStream,
             uid: peerUid,
             username: peerUsername,
             photoURL: current?.photoURL ?? initialState?.photoURL ?? null,
