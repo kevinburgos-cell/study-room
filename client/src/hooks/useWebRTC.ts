@@ -7,7 +7,7 @@ const ICE_SERVERS = [
 ];
 
 interface PeerInfo {
-  stream: MediaStream;
+  stream: MediaStream | null;
   uid: string;
   username: string;
 }
@@ -128,22 +128,44 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((t) => t.stop());
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: withVideo,
-        audio: withAudio,
-      });
+      const tryGetUserMedia = async () => {
+        const attempts = [
+          { video: withVideo, audio: withAudio },
+          { video: withVideo, audio: false },
+          { video: false, audio: withAudio },
+        ].filter((constraints, index, list) => (
+          constraints.video || constraints.audio
+        ) && list.findIndex((item) => item.video === constraints.video && item.audio === constraints.audio) === index);
+
+        let lastError: any = null;
+        for (const constraints of attempts) {
+          try {
+            return await navigator.mediaDevices.getUserMedia(constraints);
+          } catch (err: any) {
+            lastError = err;
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+              throw err;
+            }
+          }
+        }
+        throw lastError;
+      };
+
+      const stream = await tryGetUserMedia();
+      const audioEnabled = stream.getAudioTracks().length > 0;
+      const videoEnabled = stream.getVideoTracks().length > 0;
       cameraStreamRef.current = stream;
       localStreamRef.current = stream;
       setLocalStream(stream);
-      setIsAudioEnabled(withAudio);
-      setIsVideoEnabled(withVideo);
+      setIsAudioEnabled(audioEnabled);
+      setIsVideoEnabled(videoEnabled);
       setIsScreenSharing(false);
-      isAudioEnabledRef.current = withAudio;
-      isVideoEnabledRef.current = withVideo;
+      isAudioEnabledRef.current = audioEnabled;
+      isVideoEnabledRef.current = videoEnabled;
       isScreenSharingRef.current = false;
       emitMediaState({
-        audioEnabled: withAudio,
-        videoEnabled: withVideo,
+        audioEnabled,
+        videoEnabled,
         isScreenSharing: false,
       });
       setIsConnecting(false);
@@ -180,11 +202,28 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       peerConnectionsRef.current.set(targetSocketId, pc);
+      setPeers((prev) => {
+        const next = new Map(prev);
+        next.set(targetSocketId, {
+          stream: prev.get(targetSocketId)?.stream ?? null,
+          uid: peerUid,
+          username: peerUsername,
+        });
+        return next;
+      });
 
       const outboundStream = getOutboundStream(stream);
+      const outboundTracks = outboundStream?.getTracks() ?? [];
       if (outboundStream) {
-        outboundStream.getTracks().forEach((track) => pc.addTrack(track, outboundStream));
-        console.log(`[useWebRTC] Added ${outboundStream.getTracks().length} local track(s) for ${peerUsername}`);
+        outboundTracks.forEach((track) => pc.addTrack(track, outboundStream));
+        console.log(`[useWebRTC] Added ${outboundTracks.length} local track(s) for ${peerUsername}`);
+      }
+
+      if (!outboundTracks.some((track) => track.kind === 'audio')) {
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+      }
+      if (!outboundTracks.some((track) => track.kind === 'video')) {
+        pc.addTransceiver('video', { direction: 'recvonly' });
       }
 
       pc.onicecandidate = (event) => {
@@ -224,6 +263,22 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     },
     [closeConnection, getOutboundStream]
   );
+
+  const renegotiatePeer = useCallback(async (targetSocketId: string) => {
+    const pc = peerConnectionsRef.current.get(targetSocketId);
+    if (!pc || !roomIdRef.current) return;
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('webrtc-offer', {
+        roomId: roomIdRef.current,
+        targetSocketId,
+        offer,
+      });
+    } catch (err) {
+      console.error('[useWebRTC] Renegotiation failed:', err);
+    }
+  }, []);
 
   useEffect(() => {
     if (!roomId) return;
@@ -422,18 +477,28 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const screenTrack = screenStream.getVideoTracks()[0];
       const cameraStream = cameraStreamRef.current || localStreamRef.current;
-      if (!screenTrack || !cameraStream) {
+      if (!screenTrack) {
         screenStream.getTracks().forEach((track) => track.stop());
         return;
       }
 
       await Promise.all(
         Array.from(peerConnectionsRef.current.entries()).map(async ([socketId, pc]) => {
-          const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+          const videoTransceiver = pc.getTransceivers().find((transceiver) => (
+            transceiver.sender.track?.kind === 'video' || transceiver.receiver.track?.kind === 'video'
+          ));
+          const sender = videoTransceiver?.sender;
           if (sender) {
+            if (videoTransceiver.direction === 'recvonly' || videoTransceiver.direction === 'inactive') {
+              videoTransceiver.direction = 'sendrecv';
+            }
             await sender.replaceTrack(screenTrack);
             console.log('[WebRTC] Screen track replaced for peer:', socketId);
             console.log('[WebRTC] ✅ Screen sharing started, connection state:', pc.connectionState);
+            await renegotiatePeer(socketId);
+          } else {
+            pc.addTrack(screenTrack, screenStream);
+            await renegotiatePeer(socketId);
           }
         })
       );
@@ -458,7 +523,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       }
       console.error('Error compartiendo pantalla:', err);
     }
-  }, [emitMediaState]);
+  }, [emitMediaState, renegotiatePeer]);
 
   /**
    * Detiene compartir pantalla y restaura el track original de la cámara.
@@ -467,15 +532,21 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   const stopScreenShare = useCallback(async () => {
     const screenStream = screenStreamRef.current;
     const cameraStream = cameraStreamRef.current || localStreamRef.current;
-    if (!screenStream || !cameraStream) return;
-    const cameraTrack = cameraStream.getVideoTracks()[0];
-    if (!cameraTrack) return;
+    if (!screenStream) return;
+    const cameraTrack = cameraStream?.getVideoTracks()[0] ?? null;
 
     await Promise.all(
       Array.from(peerConnectionsRef.current.entries()).map(async ([socketId, pc]) => {
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        const videoTransceiver = pc.getTransceivers().find((transceiver) => (
+          transceiver.sender.track?.kind === 'video' || transceiver.receiver.track?.kind === 'video'
+        ));
+        const sender = videoTransceiver?.sender;
         if (sender) {
           await sender.replaceTrack(cameraTrack);
+          if (!cameraTrack && videoTransceiver.direction === 'sendrecv') {
+            videoTransceiver.direction = 'recvonly';
+            await renegotiatePeer(socketId);
+          }
           console.log('[WebRTC] Camera track restored for peer:', socketId);
           console.log('[WebRTC] ✅ Screen sharing stopped, connection state:', pc.connectionState);
         }
@@ -484,7 +555,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
 
     screenStream.getTracks().forEach((t) => t.stop());
     screenStreamRef.current = null;
-    setLocalStream(cameraStream);
+    setLocalStream(cameraStream ?? null);
     setIsScreenSharing(false);
     isScreenSharingRef.current = false;
     emitMediaState({
@@ -492,7 +563,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       videoEnabled: isVideoEnabledRef.current,
       isScreenSharing: false,
     });
-  }, [emitMediaState]);
+  }, [emitMediaState, renegotiatePeer]);
 
   const retryPermissions = useCallback(async () => {
     await initLocalStream(true, true);

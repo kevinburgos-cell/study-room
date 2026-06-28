@@ -6,6 +6,16 @@ import { ConnectedUser, JoinRoomPayload, LeaveRoomPayload } from '../types/socke
 export const connectedUsers: { [roomId: string]: ConnectedUser[] } = {};
 
 export function registerRoomHandlers(io: Server, socket: Socket) {
+  const emitRoomUsers = (roomId: string) => {
+    io.to(roomId).emit('room-users', {
+      users: (connectedUsers[roomId] || []).map(({ uid, username, photoURL }) => ({
+        uid,
+        username,
+        photoURL,
+      })),
+    });
+  };
+
   const emitExistingPeers = (roomId: string) => {
     const peersList = connectedUsers[roomId]
       .filter((u) => u.socketId !== socket.id)
@@ -81,14 +91,8 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         photoURL: newUser.photoURL,
       });
 
-      // Send the current list of online users to the joining client
-      socket.emit('room-users', {
-        users: connectedUsers[roomId].map(({ uid, username, photoURL }) => ({
-          uid,
-          username,
-          photoURL,
-        })),
-      });
+      // Keep every client in the room synchronized with the full participants list
+      emitRoomUsers(roomId);
 
       console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}.`);
 
@@ -131,6 +135,7 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           uid: userLeaving.uid,
           username: userLeaving.username,
         });
+        emitRoomUsers(roomId);
         console.log(`[Socket] User ${userLeaving.username} left room ${roomId}`);
       }
 
@@ -170,6 +175,7 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           uid: userLeaving.uid,
           username: userLeaving.username,
         });
+        emitRoomUsers(roomId);
 
         console.log(`[Socket] User ${userLeaving.username} disconnected from room ${roomId}`);
 

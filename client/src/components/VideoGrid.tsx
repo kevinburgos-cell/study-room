@@ -5,7 +5,7 @@ import type { PeerMediaState } from '../hooks/usePeerMediaState';
 interface VideoGridProps {
   localStream: MediaStream | null;
   localUser: { uid: string; username: string; photoURL?: string | null };
-  peers: Map<string, { stream: MediaStream; uid: string; username: string }>;
+  peers: Map<string, { stream: MediaStream | null; uid: string; username: string }>;
   mediaStates?: Map<string, PeerMediaState>;
   isLocalMuted?: boolean;
   isLocalCameraOff?: boolean;

@@ -6,6 +6,15 @@ const verifyToken_1 = require("../middlewares/verifyToken");
 // In-memory storage for users in each room
 exports.connectedUsers = {};
 function registerRoomHandlers(io, socket) {
+    const emitRoomUsers = (roomId) => {
+        io.to(roomId).emit('room-users', {
+            users: (exports.connectedUsers[roomId] || []).map(({ uid, username, photoURL }) => ({
+                uid,
+                username,
+                photoURL,
+            })),
+        });
+    };
     const emitExistingPeers = (roomId) => {
         const peersList = exports.connectedUsers[roomId]
             .filter((u) => u.socketId !== socket.id)
@@ -68,14 +77,8 @@ function registerRoomHandlers(io, socket) {
                 username: newUser.username,
                 photoURL: newUser.photoURL,
             });
-            // Send the current list of online users to the joining client
-            socket.emit('room-users', {
-                users: exports.connectedUsers[roomId].map(({ uid, username, photoURL }) => ({
-                    uid,
-                    username,
-                    photoURL,
-                })),
-            });
+            // Keep every client in the room synchronized with the full participants list
+            emitRoomUsers(roomId);
             console.log(`[Socket-Room] User ${username} (${uid}, socket: ${socket.id}) joined room ${roomId}.`);
             // Emit existing peers list after a short delay to reduce WebRTC race conditions
             setTimeout(() => {
@@ -114,6 +117,7 @@ function registerRoomHandlers(io, socket) {
                     uid: userLeaving.uid,
                     username: userLeaving.username,
                 });
+                emitRoomUsers(roomId);
                 console.log(`[Socket] User ${userLeaving.username} left room ${roomId}`);
             }
             if (exports.connectedUsers[roomId].length === 0) {
@@ -148,6 +152,7 @@ function registerRoomHandlers(io, socket) {
                     uid: userLeaving.uid,
                     username: userLeaving.username,
                 });
+                emitRoomUsers(roomId);
                 console.log(`[Socket] User ${userLeaving.username} disconnected from room ${roomId}`);
                 if (exports.connectedUsers[roomId].length === 0) {
                     delete exports.connectedUsers[roomId];

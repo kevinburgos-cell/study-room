@@ -33,7 +33,7 @@ export default function RoomPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [isDeletedModalOpen, setIsDeletedModalOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ id: number; message: string; type: 'success' | 'error' } | null>(null);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [mobileSheet, setMobileSheet] = useState<MobileSheet>('none');
@@ -78,11 +78,15 @@ export default function RoomPage() {
   }, []);
 
   const { isConnected, isConnecting, showReconnectingBanner, showConnectedSuccess } = useSocket(id);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ id: Date.now(), message, type });
+  };
+
   const onlineUsers = useRoomUsers({
-    onUserJoined: (username) => setToast({ message: `${username} se unió a la sala`, type: 'success' }),
-    onUserLeft: (username) => setToast({ message: `${username} salió de la sala`, type: 'success' }),
+    onUserJoined: (username) => showToast(`${username} se unió a la sala`, 'success'),
+    onUserLeft: (username) => showToast(`${username} salió de la sala`, 'success'),
     onError: (errorMessage) => {
-      setToast({ message: `Error en tiempo real: ${errorMessage}`, type: 'error' });
+      showToast(`Error en tiempo real: ${errorMessage}`, 'error');
       if (errorMessage.toLowerCase().includes('token')) {
         setTimeout(() => navigate('/login'), 2000);
       }
@@ -213,7 +217,7 @@ export default function RoomPage() {
       await leaveRoom(room.id, user.uid);
       navigate('/dashboard');
     } catch (err: any) {
-      setToast({ message: err.message || 'Error al abandonar la sala', type: 'error' });
+      showToast(err.message || 'Error al abandonar la sala', 'error');
     }
   };
 
@@ -361,8 +365,8 @@ export default function RoomPage() {
         )}
       </div>
 
-      {isHost && <EditRoomModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} room={room!} onUpdated={() => setToast({ message: 'Sala actualizada', type: 'success' })} />}
-      {isHost && <DeleteRoomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} room={room!} onDeleted={() => { setToast({ message: 'Sala eliminada', type: 'success' }); setIsDeleteOpen(false); navigate('/dashboard'); }} />}
+      {isHost && <EditRoomModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} room={room!} onUpdated={() => showToast('Sala actualizada', 'success')} />}
+      {isHost && <DeleteRoomModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} room={room!} onDeleted={() => { showToast('Sala eliminada', 'success'); setIsDeleteOpen(false); navigate('/dashboard'); }} />}
 
       {isLeaveConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
@@ -380,7 +384,7 @@ export default function RoomPage() {
 
       {toast && (
         <div className="fixed bottom-5 right-5 z-[60]">
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+          <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         </div>
       )}
 
