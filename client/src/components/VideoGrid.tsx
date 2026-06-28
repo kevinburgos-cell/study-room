@@ -5,7 +5,15 @@ import type { PeerMediaState } from '../hooks/usePeerMediaState';
 interface VideoGridProps {
   localStream: MediaStream | null;
   localUser: { uid: string; username: string; photoURL?: string | null };
-  peers: Map<string, { stream: MediaStream | null; uid: string; username: string }>;
+  peers: Map<string, {
+    stream: MediaStream | null;
+    uid: string;
+    username: string;
+    photoURL?: string | null;
+    audioEnabled?: boolean;
+    videoEnabled?: boolean;
+    isScreenSharing?: boolean;
+  }>;
   mediaStates?: Map<string, PeerMediaState>;
   isLocalMuted?: boolean;
   isLocalCameraOff?: boolean;
@@ -18,6 +26,18 @@ function getMeetGridStyle(totalParticipants: number): React.CSSProperties {
   return {
     gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${minTileWidth}px), 1fr))`,
     gridAutoRows: 'minmax(160px, 1fr)',
+  };
+}
+
+function toMediaState(peer: {
+  audioEnabled?: boolean;
+  videoEnabled?: boolean;
+  isScreenSharing?: boolean;
+}): PeerMediaState {
+  return {
+    audioEnabled: peer.audioEnabled ?? true,
+    videoEnabled: peer.videoEnabled ?? true,
+    isScreenSharing: Boolean(peer.isScreenSharing),
   };
 }
 
@@ -42,7 +62,7 @@ export default function VideoGrid({
 
   const localSharingActive = localMediaState.isScreenSharing;
   const sharingPeer = peerList.find(([socketId, peerInfo]) => {
-    const mediaState = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
+    const mediaState = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid) ?? peerInfo;
     return Boolean(mediaState?.isScreenSharing);
   });
 
@@ -86,13 +106,14 @@ export default function VideoGrid({
         stream: peerInfo.stream,
         username: peerInfo.username,
         isLocal: false,
-        mediaState: mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid),
+        photoURL: peerInfo.photoURL,
+        mediaState: mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid) ?? toMediaState(peerInfo),
       }));
     } else if (sharingPeer) {
       const [sharingSocketId, sharingPeerInfo] = sharingPeer;
       screenShareStream = sharingPeerInfo.stream;
       screenShareUser = sharingPeerInfo.username;
-      screenShareMedia = mediaStates?.get(sharingSocketId) ?? mediaStates?.get(sharingPeerInfo.uid);
+      screenShareMedia = mediaStates?.get(sharingSocketId) ?? mediaStates?.get(sharingPeerInfo.uid) ?? toMediaState(sharingPeerInfo);
 
       sidePeersList = [
         {
@@ -110,16 +131,16 @@ export default function VideoGrid({
             stream: peerInfo.stream,
             username: peerInfo.username,
             isLocal: false,
-            mediaState: mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid),
+            photoURL: peerInfo.photoURL,
+            mediaState: mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid) ?? toMediaState(peerInfo),
           })),
       ];
     }
 
     return (
-      <div className={`relative h-full w-full bg-black ${className}`}>
-        <div className="grid h-full w-full gap-2 p-2 grid-cols-1 md:grid-cols-[2fr_1fr] overflow-hidden">
-          {/* Main Sharing Tile */}
-          <div className="min-h-0 h-[58vh] md:h-auto">
+      <div className={`relative h-full w-full overflow-hidden bg-black ${className}`}>
+        <div className="flex h-full w-full flex-col gap-2 p-2 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(220px,300px)]">
+          <div className="min-h-0 flex-1 lg:h-full">
             <VideoTile
               stream={screenShareStream}
               username={screenShareUser}
@@ -128,13 +149,11 @@ export default function VideoGrid({
             />
           </div>
 
-          {/* Sidebar Tiles */}
           <div
-            className="grid min-h-0 gap-2 overflow-y-auto content-start"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))' }}
+            className="grid max-h-[32vh] shrink-0 grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2 overflow-y-auto lg:max-h-none lg:auto-rows-max lg:grid-cols-1"
           >
             {sidePeersList.map((peer) => (
-              <div key={peer.id} className="aspect-video min-h-[120px]">
+              <div key={peer.id} className="aspect-video min-h-[96px] lg:min-h-0">
                 <VideoTile
                   stream={peer.stream}
                   username={peer.username}
@@ -169,13 +188,17 @@ export default function VideoGrid({
 
         {/* Peer tiles */}
         {peerList.map(([socketId, peerInfo]) => {
-          const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
+          const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid) ?? toMediaState(peerInfo);
           return (
             <div key={socketId} className="aspect-video min-h-[150px] w-full">
               <VideoTile
                 stream={peerInfo.stream}
                 username={peerInfo.username}
                 mediaState={peerMedia}
+                photoURL={peerInfo.photoURL}
+                audioEnabled={peerInfo.audioEnabled}
+                videoEnabled={peerInfo.videoEnabled}
+                isScreenSharing={peerInfo.isScreenSharing}
               />
             </div>
           );

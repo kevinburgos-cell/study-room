@@ -10,6 +10,10 @@ interface PeerInfo {
   stream: MediaStream | null;
   uid: string;
   username: string;
+  photoURL?: string | null;
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  isScreenSharing: boolean;
 }
 
 interface MediaStatePayload {
@@ -209,7 +213,14 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   }, [emitMediaState]);
 
   const createPeerConnection = useCallback(
-    (targetSocketId: string, peerUid: string, peerUsername: string, stream: MediaStream | null, replaceExisting = true) => {
+    (
+      targetSocketId: string,
+      peerUid: string,
+      peerUsername: string,
+      stream: MediaStream | null,
+      replaceExisting = true,
+      initialState?: Partial<Pick<PeerInfo, 'photoURL' | 'audioEnabled' | 'videoEnabled' | 'isScreenSharing'>>
+    ) => {
       const existing = peerConnectionsRef.current.get(targetSocketId);
       if (existing && !replaceExisting) {
         setPeers((prev) => {
@@ -219,6 +230,10 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
             stream: current?.stream ?? null,
             uid: peerUid,
             username: peerUsername,
+            photoURL: initialState?.photoURL ?? current?.photoURL ?? null,
+            audioEnabled: initialState?.audioEnabled ?? current?.audioEnabled ?? true,
+            videoEnabled: initialState?.videoEnabled ?? current?.videoEnabled ?? true,
+            isScreenSharing: initialState?.isScreenSharing ?? current?.isScreenSharing ?? false,
           });
           return next;
         });
@@ -234,10 +249,15 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       peerConnectionsRef.current.set(targetSocketId, pc);
       setPeers((prev) => {
         const next = new Map(prev);
+        const current = prev.get(targetSocketId);
         next.set(targetSocketId, {
-          stream: prev.get(targetSocketId)?.stream ?? null,
+          stream: current?.stream ?? null,
           uid: peerUid,
           username: peerUsername,
+          photoURL: initialState?.photoURL ?? current?.photoURL ?? null,
+          audioEnabled: initialState?.audioEnabled ?? current?.audioEnabled ?? true,
+          videoEnabled: initialState?.videoEnabled ?? current?.videoEnabled ?? true,
+          isScreenSharing: initialState?.isScreenSharing ?? current?.isScreenSharing ?? false,
         });
         return next;
       });
@@ -266,10 +286,15 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         const remoteStream = event.streams[0] || new MediaStream([event.track]);
         setPeers((prev) => {
           const next = new Map(prev);
+          const current = next.get(targetSocketId);
           next.set(targetSocketId, {
             stream: remoteStream,
             uid: peerUid,
             username: peerUsername,
+            photoURL: current?.photoURL ?? initialState?.photoURL ?? null,
+            audioEnabled: current?.audioEnabled ?? initialState?.audioEnabled ?? true,
+            videoEnabled: current?.videoEnabled ?? initialState?.videoEnabled ?? true,
+            isScreenSharing: current?.isScreenSharing ?? initialState?.isScreenSharing ?? false,
           });
           return next;
         });
@@ -310,7 +335,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     if (!roomId) return;
 
     const handleExistingPeers = async (payload: {
-      peers: { socketId: string; uid: string; username: string; audioEnabled?: boolean; videoEnabled?: boolean; isScreenSharing?: boolean }[];
+      peers: { socketId: string; uid: string; username: string; photoURL?: string | null; audioEnabled?: boolean; videoEnabled?: boolean; isScreenSharing?: boolean }[];
     }) => {
       let stream = localStreamRef.current;
       if (!stream && !permissionErrorRef.current) {
@@ -323,7 +348,12 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
           videoEnabled: Boolean(peer.videoEnabled ?? true),
           isScreenSharing: Boolean(peer.isScreenSharing),
         });
-        const pc = createPeerConnection(peer.socketId, peer.uid, peer.username, stream);
+        const pc = createPeerConnection(peer.socketId, peer.uid, peer.username, stream, true, {
+          photoURL: peer.photoURL ?? null,
+          audioEnabled: Boolean(peer.audioEnabled ?? true),
+          videoEnabled: Boolean(peer.videoEnabled ?? true),
+          isScreenSharing: Boolean(peer.isScreenSharing),
+        });
         try {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -349,7 +379,12 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         payload.fromUid,
         payload.fromUsername ?? peerUser?.username ?? 'Compañero',
         stream,
-        false
+        false,
+        {
+          audioEnabled: true,
+          videoEnabled: true,
+          isScreenSharing: false,
+        }
       );
       if (pc.signalingState !== 'stable') {
         await pc.setLocalDescription({ type: 'rollback' } as RTCSessionDescriptionInit);
@@ -398,7 +433,12 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         const peer = prev.get(socketId);
         if (!peer) return prev;
         const next = new Map(prev);
-        next.set(socketId, peer);
+        next.set(socketId, {
+          ...peer,
+          audioEnabled: nextState.audioEnabled,
+          videoEnabled: nextState.videoEnabled,
+          isScreenSharing: nextState.isScreenSharing,
+        });
         return next;
       });
     };

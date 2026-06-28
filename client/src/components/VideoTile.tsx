@@ -7,6 +7,8 @@ interface VideoTileProps {
   isLocal?: boolean;
   mediaState?: PeerMediaState;
   photoURL?: string | null;
+  audioEnabled?: boolean;
+  videoEnabled?: boolean;
   isScreenSharing?: boolean;
 }
 
@@ -26,24 +28,41 @@ export default function VideoTile({
   isLocal = false,
   mediaState,
   photoURL = null,
+  audioEnabled: audioEnabledProp,
+  videoEnabled: videoEnabledProp,
   isScreenSharing = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioEnabled = mediaState?.audioEnabled ?? true;
-  const videoEnabled = mediaState?.videoEnabled ?? true;
+  const audioEnabled = audioEnabledProp ?? mediaState?.audioEnabled ?? true;
+  const videoEnabled = videoEnabledProp ?? mediaState?.videoEnabled ?? true;
   const sharing = mediaState?.isScreenSharing ?? isScreenSharing;
-  const showAvatar = !stream || (!videoEnabled && !sharing);
+  const shouldShowVideo = Boolean(stream && (videoEnabled || sharing));
+  const showAvatar = !shouldShowVideo;
 
   useEffect(() => {
-    if (videoRef.current && stream && !showAvatar) {
+    if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
+      videoRef.current.play().catch((err) => {
+        console.warn('[VideoTile] Autoplay blocked:', err);
+      });
     }
-  }, [stream, showAvatar]);
+  }, [stream]);
+
+  useEffect(() => {
+    if (shouldShowVideo && videoRef.current) {
+      videoRef.current.play().catch((err) => {
+        console.warn('[VideoTile] Video play failed:', err);
+      });
+    }
+  }, [shouldShowVideo]);
 
   useEffect(() => {
     if (audioRef.current && stream && !isLocal) {
       audioRef.current.srcObject = stream;
+      audioRef.current.play().catch((err) => {
+        console.warn('[VideoTile] Audio autoplay blocked:', err);
+      });
     }
   }, [stream, isLocal]);
 
@@ -51,18 +70,17 @@ export default function VideoTile({
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg bg-black shadow-[0_18px_40px_rgba(2,6,23,0.42)]">
-      {!showAvatar && (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={[
-            'h-full w-full object-cover',
-            isLocal && !sharing ? 'scale-x-[-1]' : '',
-          ].join(' ')}
-        />
-      )}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal || showAvatar}
+        className={[
+          'h-full w-full object-cover',
+          shouldShowVideo ? 'block' : 'hidden',
+          isLocal && !sharing ? 'scale-x-[-1]' : '',
+        ].join(' ')}
+      />
 
       {showAvatar && stream && !isLocal && (
         <audio ref={audioRef} autoPlay playsInline />

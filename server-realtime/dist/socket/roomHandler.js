@@ -24,6 +24,7 @@ function registerRoomHandlers(io, socket) {
                 socketId: u.socketId,
                 uid: u.uid,
                 username: u.username,
+                photoURL: u.photoURL,
                 audioEnabled: Boolean(peerSocket?.data?.audioEnabled ?? u.audioEnabled ?? true),
                 videoEnabled: Boolean(peerSocket?.data?.videoEnabled ?? u.videoEnabled ?? true),
                 isScreenSharing: Boolean(peerSocket?.data?.isScreenSharing ?? u.isScreenSharing),
