@@ -13,11 +13,12 @@ interface VideoGridProps {
   className?: string;
 }
 
-function getGridClass(totalParticipants: number) {
-  if (totalParticipants <= 1) return 'grid-cols-1 place-items-center max-w-[800px]';
-  if (totalParticipants === 2) return 'grid-cols-1 md:grid-cols-2';
-  if (totalParticipants <= 4) return 'grid-cols-2';
-  return 'grid-cols-3';
+function getMeetGridStyle(totalParticipants: number): React.CSSProperties {
+  const minTileWidth = totalParticipants <= 2 ? 360 : totalParticipants <= 6 ? 260 : 200;
+  return {
+    gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${minTileWidth}px), 1fr))`,
+    gridAutoRows: 'minmax(160px, 1fr)',
+  };
 }
 
 export default function VideoGrid({
@@ -118,7 +119,7 @@ export default function VideoGrid({
       <div className={`relative h-full w-full bg-black ${className}`}>
         <div className="grid h-full w-full gap-2 p-2 grid-cols-1 md:grid-cols-[2fr_1fr] overflow-hidden">
           {/* Main Sharing Tile */}
-          <div className="min-h-0 h-[60vh] md:h-auto">
+          <div className="min-h-0 h-[58vh] md:h-auto">
             <VideoTile
               stream={screenShareStream}
               username={screenShareUser}
@@ -128,9 +129,12 @@ export default function VideoGrid({
           </div>
 
           {/* Sidebar Tiles */}
-          <div className="grid min-h-0 grid-cols-2 md:grid-cols-1 gap-2 overflow-y-auto content-start">
+          <div
+            className="grid min-h-0 gap-2 overflow-y-auto content-start"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))' }}
+          >
             {sidePeersList.map((peer) => (
-              <div key={peer.id} className="aspect-video">
+              <div key={peer.id} className="aspect-video min-h-[120px]">
                 <VideoTile
                   stream={peer.stream}
                   username={peer.username}
@@ -146,19 +150,14 @@ export default function VideoGrid({
     );
   }
 
-  // Standard layouts: 2, 3-4, 5+
-  let layoutClasses = 'grid-cols-1 md:grid-cols-2 grid-rows-2 md:grid-rows-1'; // Default 2 people layout
-  if (totalParticipants >= 3 && totalParticipants <= 4) {
-    layoutClasses = 'grid-cols-2 grid-rows-2';
-  } else if (totalParticipants >= 5) {
-    layoutClasses = 'grid-cols-2 md:grid-cols-3 overflow-y-auto';
-  }
-
   return (
-    <div className={`relative h-full w-full bg-black ${className}`}>
-      <div className={`grid h-full w-full gap-2 p-2 ${layoutClasses}`}>
+    <div className={`relative h-full w-full overflow-y-auto bg-black ${className}`}>
+      <div
+        className="grid min-h-full w-full auto-rows-fr content-center gap-2 p-2"
+        style={getMeetGridStyle(totalParticipants)}
+      >
         {/* Local user tile */}
-        <div className="w-full h-full min-h-[140px]">
+        <div className="aspect-video min-h-[150px] w-full">
           <VideoTile
             stream={localStream}
             username={localUser.username}
@@ -172,7 +171,7 @@ export default function VideoGrid({
         {peerList.map(([socketId, peerInfo]) => {
           const peerMedia = mediaStates?.get(socketId) ?? mediaStates?.get(peerInfo.uid);
           return (
-            <div key={socketId} className="w-full h-full min-h-[140px]">
+            <div key={socketId} className="aspect-video min-h-[150px] w-full">
               <VideoTile
                 stream={peerInfo.stream}
                 username={peerInfo.username}

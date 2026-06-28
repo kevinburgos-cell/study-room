@@ -29,6 +29,7 @@ export default function VideoTile({
   isScreenSharing = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioEnabled = mediaState?.audioEnabled ?? true;
   const videoEnabled = mediaState?.videoEnabled ?? true;
   const sharing = mediaState?.isScreenSharing ?? isScreenSharing;
@@ -39,6 +40,12 @@ export default function VideoTile({
       videoRef.current.srcObject = stream;
     }
   }, [stream, showAvatar]);
+
+  useEffect(() => {
+    if (audioRef.current && stream && !isLocal) {
+      audioRef.current.srcObject = stream;
+    }
+  }, [stream, isLocal]);
 
   const initial = username ? username[0].toUpperCase() : 'U';
 
@@ -55,6 +62,10 @@ export default function VideoTile({
             isLocal && !sharing ? 'scale-x-[-1]' : '',
           ].join(' ')}
         />
+      )}
+
+      {showAvatar && stream && !isLocal && (
+        <audio ref={audioRef} autoPlay playsInline />
       )}
 
       {showAvatar && (
