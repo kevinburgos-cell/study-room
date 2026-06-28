@@ -3,7 +3,7 @@ import { socket } from '../socket/socket';
 import { useAuth } from '../contexts/AuthContext';
 
 export function useSocket(roomId: string | undefined) {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, user } = useAuth();
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showReconnectingBanner, setShowReconnectingBanner] = useState(false);
@@ -48,7 +48,12 @@ export function useSocket(roomId: string | undefined) {
         socket.disconnect();
         socket.connect();
         if (roomIdRef.current && authTokenRef.current) {
-          socket.emit('join-room', { roomId: roomIdRef.current, token: authTokenRef.current });
+          socket.emit('join-room', {
+            roomId: roomIdRef.current,
+            token: authTokenRef.current,
+            username: user?.username,
+            photoURL: user?.photoURL,
+          });
         }
       }, 5000);
     }, 30000);
@@ -67,7 +72,12 @@ export function useSocket(roomId: string | undefined) {
           socket.connect();
         }
 
-        socket.emit('join-room', { roomId, token });
+        socket.emit('join-room', {
+          roomId,
+          token,
+          username: user?.username,
+          photoURL: user?.photoURL,
+        });
       } catch (error) {
         console.error('Error getting auth token or connecting:', error);
         setIsConnecting(false);
@@ -134,7 +144,7 @@ export function useSocket(roomId: string | undefined) {
       setShowReconnectingBanner(false);
       setShowConnectedSuccess(false);
     };
-  }, [roomId, firebaseUser]);
+  }, [roomId, firebaseUser, user?.username, user?.photoURL]);
 
   return { isConnected, isConnecting, showReconnectingBanner, showConnectedSuccess };
 }

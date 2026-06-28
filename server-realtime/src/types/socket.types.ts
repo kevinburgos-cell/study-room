@@ -11,6 +11,8 @@ export interface ConnectedUser {
 export interface JoinRoomPayload {
   roomId: string;
   token: string;
+  username?: string;
+  photoURL?: string | null;
 }
 
 export interface LeaveRoomPayload {

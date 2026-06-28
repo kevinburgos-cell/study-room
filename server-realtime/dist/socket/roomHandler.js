@@ -44,8 +44,8 @@ function registerRoomHandlers(io, socket) {
             const decodedToken = await (0, verifyToken_1.verifyFirebaseToken)(token);
             const uid = decodedToken.uid;
             // Map user details
-            const username = decodedToken.name || (decodedToken.email ? decodedToken.email.split('@')[0] : 'Estudiante');
-            const photoURL = decodedToken.picture || null;
+            const username = payload.username?.trim() || decodedToken.name || (decodedToken.email ? decodedToken.email.split('@')[0] : 'Estudiante');
+            const photoURL = payload.photoURL || decodedToken.picture || null;
             // Join room in Socket.io
             socket.join(roomId);
             // Save socket metadata for automatic cleanup

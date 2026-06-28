@@ -193,8 +193,22 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   }, [emitMediaState]);
 
   const createPeerConnection = useCallback(
-    (targetSocketId: string, peerUid: string, peerUsername: string, stream: MediaStream | null) => {
+    (targetSocketId: string, peerUid: string, peerUsername: string, stream: MediaStream | null, replaceExisting = true) => {
       const existing = peerConnectionsRef.current.get(targetSocketId);
+      if (existing && !replaceExisting) {
+        setPeers((prev) => {
+          const next = new Map(prev);
+          const current = next.get(targetSocketId);
+          next.set(targetSocketId, {
+            stream: current?.stream ?? null,
+            uid: peerUid,
+            username: peerUsername,
+          });
+          return next;
+        });
+        return existing;
+      }
+
       if (existing) {
         existing.close();
         peerConnectionsRef.current.delete(targetSocketId);
@@ -312,13 +326,19 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       }
     };
 
-    const handleOffer = async (payload: { offer: RTCSessionDescriptionInit; fromSocketId: string; fromUid: string }) => {
+    const handleOffer = async (payload: { offer: RTCSessionDescriptionInit; fromSocketId: string; fromUid: string; fromUsername?: string }) => {
       let stream = localStreamRef.current;
       if (!stream && !permissionErrorRef.current) {
         stream = await initLocalStream();
       }
       const peerUser = onlineUsersRef.current.find((u) => u.uid === payload.fromUid);
-      const pc = createPeerConnection(payload.fromSocketId, payload.fromUid, peerUser?.username ?? 'Compañero', stream);
+      const pc = createPeerConnection(
+        payload.fromSocketId,
+        payload.fromUid,
+        payload.fromUsername ?? peerUser?.username ?? 'Compañero',
+        stream,
+        false
+      );
       await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -332,6 +352,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     const handleAnswer = async (payload: { answer: RTCSessionDescriptionInit; fromSocketId: string }) => {
       const pc = peerConnectionsRef.current.get(payload.fromSocketId);
       if (pc) {
+        if (pc.signalingState === 'stable') return;
         await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
       }
     };
@@ -489,13 +510,16 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
           ));
           const sender = videoTransceiver?.sender;
           if (sender) {
+            const needsRenegotiation = !sender.track || videoTransceiver.direction === 'recvonly' || videoTransceiver.direction === 'inactive';
             if (videoTransceiver.direction === 'recvonly' || videoTransceiver.direction === 'inactive') {
               videoTransceiver.direction = 'sendrecv';
             }
             await sender.replaceTrack(screenTrack);
             console.log('[WebRTC] Screen track replaced for peer:', socketId);
             console.log('[WebRTC] ✅ Screen sharing started, connection state:', pc.connectionState);
-            await renegotiatePeer(socketId);
+            if (needsRenegotiation) {
+              await renegotiatePeer(socketId);
+            }
           } else {
             pc.addTrack(screenTrack, screenStream);
             await renegotiatePeer(socketId);

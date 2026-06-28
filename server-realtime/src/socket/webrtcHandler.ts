@@ -4,14 +4,16 @@ export function registerWebRTCHandlers(io: Server, socket: Socket) {
   // 1. Forward WebRTC offer to target peer
   socket.on('webrtc-offer', (payload: { roomId: string; targetSocketId: string; offer: any }) => {
     const { targetSocketId, offer, roomId } = payload;
-    const uid = (socket as any).uid;
+    const uid = socket.data?.uid;
+    const username = socket.data?.username || 'Estudiante';
     
     console.log(`[Socket-WebRTC] Received webrtc-offer from ${socket.id} (uid: ${uid}) targeting ${targetSocketId} in room ${roomId}`);
     
     io.to(targetSocketId).emit('webrtc-offer', {
       offer,
       fromSocketId: socket.id,
-      fromUid: uid
+      fromUid: uid,
+      fromUsername: username,
     });
   });
 
