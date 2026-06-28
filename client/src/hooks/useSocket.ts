@@ -9,55 +9,11 @@ export function useSocket(roomId: string | undefined) {
   const [showReconnectingBanner, setShowReconnectingBanner] = useState(false);
   const [showConnectedSuccess, setShowConnectedSuccess] = useState(false);
   const roomIdRef = useRef(roomId);
-  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const heartbeatAckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const authTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     roomIdRef.current = roomId;
   }, [roomId]);
-
-  useEffect(() => {
-    return () => {
-      if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
-      if (heartbeatAckTimeoutRef.current) clearTimeout(heartbeatAckTimeoutRef.current);
-    };
-  }, []);
-
-  const clearHeartbeatWatchdog = () => {
-    if (heartbeatAckTimeoutRef.current) {
-      clearTimeout(heartbeatAckTimeoutRef.current);
-      heartbeatAckTimeoutRef.current = null;
-    }
-  };
-
-  const startHeartbeat = () => {
-    if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
-
-    heartbeatTimerRef.current = setInterval(() => {
-      if (!socket.connected || !roomIdRef.current || !authTokenRef.current) return;
-
-      clearHeartbeatWatchdog();
-      socket.emit('heartbeat', {
-        roomId: roomIdRef.current,
-        uid: firebaseUser?.uid,
-      });
-
-      heartbeatAckTimeoutRef.current = setTimeout(() => {
-        console.warn('[useSocket] Heartbeat ACK not received in time, reconnecting socket');
-        socket.disconnect();
-        socket.connect();
-        if (roomIdRef.current && authTokenRef.current) {
-          socket.emit('join-room', {
-            roomId: roomIdRef.current,
-            token: authTokenRef.current,
-            username: user?.username,
-            photoURL: user?.photoURL,
-          });
-        }
-      }, 5000);
-    }, 30000);
-  };
 
   useEffect(() => {
     if (!roomId || !firebaseUser) return;
@@ -90,7 +46,6 @@ export function useSocket(roomId: string | undefined) {
       setIsConnected(true);
       setIsConnecting(false);
       setShowReconnectingBanner(false);
-      startHeartbeat();
       
       // Temporary display of reconnect success
       setShowConnectedSuccess(true);
@@ -100,10 +55,10 @@ export function useSocket(roomId: string | undefined) {
       return () => clearTimeout(timer);
     };
 
-    const onDisconnect = () => {
+    const onDisconnect = (reason: string) => {
+      console.log('[useSocket] Socket disconnected:', reason);
       setIsConnected(false);
       setIsConnecting(false);
-      clearHeartbeatWatchdog();
     };
 
     const onConnectError = (err: any) => {
@@ -116,25 +71,34 @@ export function useSocket(roomId: string | undefined) {
       setShowReconnectingBanner(true);
     };
 
-    const onHeartbeatAck = () => {
-      clearHeartbeatWatchdog();
+    const onReconnect = (attemptNumber: number) => {
+      console.log('[useSocket] Socket reconnected after', attemptNumber, 'attempts');
+      setIsConnected(true);
+      setIsConnecting(false);
+      setShowReconnectingBanner(false);
+      if (roomIdRef.current && authTokenRef.current) {
+        socket.emit('join-room', {
+          roomId: roomIdRef.current,
+          token: authTokenRef.current,
+          username: user?.username,
+          photoURL: user?.photoURL,
+        });
+      }
     };
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
     socket.on('reconnect_attempt', onReconnectAttempt);
-    socket.on('heartbeat-ack', onHeartbeatAck);
+    socket.io.on('reconnect', onReconnect);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onConnectError);
       socket.off('reconnect_attempt', onReconnectAttempt);
-      socket.off('heartbeat-ack', onHeartbeatAck);
+      socket.io.off('reconnect', onReconnect);
 
-      if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
-      clearHeartbeatWatchdog();
       if (socket.connected) {
         socket.emit('leave-room', { roomId });
         socket.disconnect();
