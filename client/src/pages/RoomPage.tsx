@@ -237,6 +237,7 @@ export default function RoomPage() {
         elapsedTime={new Date(elapsedSeconds * 1000).toISOString().slice(11, 19)}
         participantCount={onlineUsers.length}
         onLeave={handleExitClick}
+        isConnected={isConnected}
       />
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">

@@ -12,3 +12,4 @@ export const socket = io(REALTIME_URL, {
   reconnectionDelay: 2000,
   timeout: 20000,
 });
+

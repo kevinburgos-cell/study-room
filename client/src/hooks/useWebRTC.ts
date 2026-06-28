@@ -43,6 +43,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   const isAudioEnabledRef = useRef(isAudioEnabled);
   const isVideoEnabledRef = useRef(isVideoEnabled);
   const isScreenSharingRef = useRef(isScreenSharing);
+  const initPromiseRef = useRef<Promise<MediaStream | null> | null>(null);
 
   useEffect(() => {
     peersRef.current = peers;
@@ -141,75 +142,86 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   }, []);
 
   const initLocalStream = useCallback(async (withVideo = true, withAudio = true) => {
-    setIsConnecting(true);
-    setPermissionError(null);
-    permissionErrorRef.current = null;
-    try {
-      if (cameraStreamRef.current) {
-        cameraStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
-      const tryGetUserMedia = async () => {
-        const attempts = [
-          { video: withVideo, audio: withAudio },
-          { video: withVideo, audio: false },
-          { video: false, audio: withAudio },
-        ].filter((constraints, index, list) => (
-          constraints.video || constraints.audio
-        ) && list.findIndex((item) => item.video === constraints.video && item.audio === constraints.audio) === index);
+    if (initPromiseRef.current) {
+      return initPromiseRef.current;
+    }
 
-        let lastError: any = null;
-        for (const constraints of attempts) {
-          try {
-            return await navigator.mediaDevices.getUserMedia(constraints);
-          } catch (err: any) {
-            lastError = err;
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-              throw err;
+    const promise = (async () => {
+      setIsConnecting(true);
+      setPermissionError(null);
+      permissionErrorRef.current = null;
+      try {
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+        }
+        const tryGetUserMedia = async () => {
+          const attempts = [
+            { video: withVideo, audio: withAudio },
+            { video: withVideo, audio: false },
+            { video: false, audio: withAudio },
+          ].filter((constraints, index, list) => (
+            constraints.video || constraints.audio
+          ) && list.findIndex((item) => item.video === constraints.video && item.audio === constraints.audio) === index);
+
+          let lastError: any = null;
+          for (const constraints of attempts) {
+            try {
+              return await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (err: any) {
+              lastError = err;
+              if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                throw err;
+              }
             }
           }
-        }
-        throw lastError;
-      };
+          throw lastError;
+        };
 
-      const stream = await tryGetUserMedia();
-      const audioEnabled = stream.getAudioTracks().length > 0;
-      const videoEnabled = stream.getVideoTracks().length > 0;
-      cameraStreamRef.current = stream;
-      localStreamRef.current = stream;
-      setLocalStream(stream);
-      setIsAudioEnabled(audioEnabled);
-      setIsVideoEnabled(videoEnabled);
-      setIsScreenSharing(false);
-      isAudioEnabledRef.current = audioEnabled;
-      isVideoEnabledRef.current = videoEnabled;
-      isScreenSharingRef.current = false;
-      emitMediaState({
-        audioEnabled,
-        videoEnabled,
-        isScreenSharing: false,
-      });
-      setIsConnecting(false);
-      return stream;
-    } catch (err: any) {
-      console.error('[useWebRTC] Error accessing media devices:', err.name, err.message);
-      setIsConnecting(false);
-      const errType =
-        err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
-          ? 'NotAllowedError'
-          : err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'
-            ? 'NotFoundError'
-            : err.name === 'NotReadableError' || err.name === 'TrackStartError'
-              ? 'NotReadableError'
-              : err.message || 'UnknownError';
-      setPermissionError(errType);
-      permissionErrorRef.current = errType;
-      if (errType === 'NotFoundError') {
-        setIsAudioEnabled(false);
-        setIsVideoEnabled(false);
-        emitMediaState({ audioEnabled: false, videoEnabled: false, isScreenSharing: false });
+        const stream = await tryGetUserMedia();
+        const audioEnabled = stream.getAudioTracks().length > 0;
+        const videoEnabled = stream.getVideoTracks().length > 0;
+        cameraStreamRef.current = stream;
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        setIsAudioEnabled(audioEnabled);
+        setIsVideoEnabled(videoEnabled);
+        setIsScreenSharing(false);
+        isAudioEnabledRef.current = audioEnabled;
+        isVideoEnabledRef.current = videoEnabled;
+        isScreenSharingRef.current = false;
+        emitMediaState({
+          audioEnabled,
+          videoEnabled,
+          isScreenSharing: false,
+        });
+        setIsConnecting(false);
+        return stream;
+      } catch (err: any) {
+        console.error('[useWebRTC] Error accessing media devices:', err.name, err.message);
+        setIsConnecting(false);
+        const errType =
+          err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
+            ? 'NotAllowedError'
+            : err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'
+              ? 'NotFoundError'
+              : err.name === 'NotReadableError' || err.name === 'TrackStartError'
+                ? 'NotReadableError'
+                : err.message || 'UnknownError';
+        setPermissionError(errType);
+        permissionErrorRef.current = errType;
+        if (errType === 'NotFoundError') {
+          setIsAudioEnabled(false);
+          setIsVideoEnabled(false);
+          emitMediaState({ audioEnabled: false, videoEnabled: false, isScreenSharing: false });
+        }
+        return null;
+      } finally {
+        initPromiseRef.current = null;
       }
-      return null;
-    }
+    })();
+
+    initPromiseRef.current = promise;
+    return promise;
   }, [emitMediaState]);
 
   const createPeerConnection = useCallback(
@@ -283,12 +295,26 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       };
 
       pc.ontrack = (event) => {
-        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        console.log(`[WebRTC] ontrack received from: ${peerUsername}, track kind: ${event.track.kind}`);
         setPeers((prev) => {
+          const existingPeer = prev.get(targetSocketId);
+          let remoteStream = existingPeer?.stream;
+
+          if (!remoteStream) {
+            remoteStream = event.streams[0] || new MediaStream();
+          }
+
+          if (!remoteStream.getTracks().includes(event.track)) {
+            remoteStream.addTrack(event.track);
+          }
+
+          // Force a new MediaStream reference to trigger React updates and VideoTile rebind
+          const updatedStream = new MediaStream(remoteStream.getTracks());
+
           const next = new Map(prev);
           const current = next.get(targetSocketId);
           next.set(targetSocketId, {
-            stream: remoteStream,
+            stream: updatedStream,
             uid: peerUid,
             username: peerUsername,
             photoURL: current?.photoURL ?? initialState?.photoURL ?? null,

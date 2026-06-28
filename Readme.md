@@ -15,7 +15,7 @@ de pantalla en tiempo real.
 | 🌐 Frontend            | https://study-room-phi-ashen.vercel.app           |
 | ⚙️ Backend API         | https://study-room-api-adj9.onrender.com          |
 | 📄 Swagger / API Docs  | https://study-room-api-adj9.onrender.com/api-docs |
-| ⚡ Backend Tiempo Real | https://tu-server-realtime.onrender.com           |
+| ⚡ Backend Tiempo Real |  https://study-room-api-adj9.onrender.com/api-docs
 
 ---
 
@@ -26,7 +26,7 @@ de pantalla en tiempo real.
 | Kevin Esteban Burgos Cobo       | 202453710 | FE Lead       |
 | Briwhell Jimenez Acosta         | 2358347   | BE Lead       |
 | Lesli Esmith Martinez Piamba    | 2126928   | Coordinación  |
-| Brayan Jusseth Carabali Montaño | 2128687   | UX Lead       |
+
 
 ---
 
@@ -106,21 +106,12 @@ npm install
 ```
 
 Crear archivo `.env` con:
-VITE_FIREBASE_API_KEY=
-
-VITE_FIREBASE_AUTH_DOMAIN=
-
-VITE_FIREBASE_PROJECT_ID=
-
-VITE_FIREBASE_STORAGE_BUCKET=
-
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-
-VITE_FIREBASE_APP_ID=
-
-VITE_API_URL=http://localhost:5000
-
-VITE_REALTIME_URL=http://localhost:4000
+VITE_FIREBASE_API_KEY=AIzaSyBCqpZNWCjbItlSMuvFzMmkhNIngr951Js
+VITE_FIREBASE_AUTH_DOMAIN=study-roo.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=study-roo
+VITE_FIREBASE_STORAGE_BUCKET=study-roo.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=257886330929
+VITE_FIREBASE_APP_ID=1:257886330929:web:fcd8585321e7d29445b510
 
 ```bash
 npm run dev
@@ -137,11 +128,10 @@ npm install
 Crear archivo `.env` con:
 PORT=5000
 
-FIREBASE_PROJECT_ID=
+  "project_id": "study-roo",
+   "client_email": "firebase-adminsdk-fbsvc@study-roo.iam.gserviceaccount.com",
+    "private_key_id": "0e88ee58a742e6a9e402ad64794a3194c95bb688",
 
-FIREBASE_PRIVATE_KEY=
-
-FIREBASE_CLIENT_EMAIL=
 
 CLIENT_URL=http://localhost:5173
 
@@ -161,11 +151,9 @@ npm install
 Crear archivo `.env` con:
 PORT=4000
 
-FIREBASE_PROJECT_ID=
-
-FIREBASE_PRIVATE_KEY=
-
-FIREBASE_CLIENT_EMAIL=
+  "project_id": "study-roo",
+   "client_email": "firebase-adminsdk-fbsvc@study-roo.iam.gserviceaccount.com",
+    "private_key_id": "0e88ee58a742e6a9e402ad64794a3194c95bb688",
 
 CLIENT_URL=http://localhost:5173
 
