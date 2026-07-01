@@ -243,22 +243,21 @@ export default function RoomPage() {
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="relative flex min-h-0 flex-1 overflow-hidden bg-black">
           <div className="relative flex min-h-0 flex-1">
-            {shouldShowPermissionPanel ? (
-              <div className="flex flex-1 items-center justify-center bg-slate-950">
+            {shouldShowPermissionPanel && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80">
                 <PermissionErrorPanel errorType={permissionError || 'UnknownError'} onRetry={retryPermissions} onContinueWithoutVideo={continueWithoutVideo} />
               </div>
-            ) : (
-              <VideoGrid
-                localStream={localStream}
-                localUser={{ uid: user!.uid, username: user!.username || 'Tú', photoURL: user!.photoURL || null }}
-                peers={peers}
-                mediaStates={roomMediaStates}
-                isLocalMuted={!isAudioEnabled}
-                isLocalCameraOff={!isVideoEnabled || isMissingMediaDevice}
-                isLocalScreenSharing={isScreenSharing}
-                className="relative"
-              />
             )}
+            <VideoGrid
+              localStream={localStream}
+              localUser={{ uid: user!.uid, username: user!.username || 'Tú', photoURL: user!.photoURL || null }}
+              peers={peers}
+              mediaStates={roomMediaStates}
+              isLocalMuted={!isAudioEnabled}
+              isLocalCameraOff={!isVideoEnabled || isMissingMediaDevice}
+              isLocalScreenSharing={isScreenSharing}
+              className="relative"
+            />
 
             {isDesktop && shouldRenderDesktopPeople && (
               <div className={`absolute top-[72px] z-20 transition-all duration-300 ${chatOpen ? 'right-[336px]' : 'right-4'}`} data-participants-panel>

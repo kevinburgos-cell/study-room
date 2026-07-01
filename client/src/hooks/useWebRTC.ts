@@ -194,6 +194,11 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
           videoEnabled,
           isScreenSharing: false,
         });
+        // Sync tracks to existing peer connections (important for retry after permission error)
+        const audioTrack = stream.getAudioTracks()[0] ?? null;
+        const videoTrack = stream.getVideoTracks()[0] ?? null;
+        if (audioTrack) replaceSenderTrack('audio', audioTrack);
+        if (videoTrack) replaceSenderTrack('video', videoTrack);
         setIsConnecting(false);
         return stream;
       } catch (err: any) {

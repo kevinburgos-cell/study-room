@@ -37,7 +37,8 @@ export default function VideoTile({
   const audioEnabled = audioEnabledProp ?? mediaState?.audioEnabled ?? true;
   const videoEnabled = videoEnabledProp ?? mediaState?.videoEnabled ?? true;
   const sharing = mediaState?.isScreenSharing ?? isScreenSharing;
-  const shouldShowVideo = Boolean(stream && (videoEnabled || sharing));
+  const hasVideoTrack = (stream?.getVideoTracks()?.length ?? 0) > 0;
+  const shouldShowVideo = hasVideoTrack && (videoEnabled || sharing);
   const showAvatar = !shouldShowVideo;
 
   useEffect(() => {
