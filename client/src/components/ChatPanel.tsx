@@ -101,12 +101,12 @@ export default function ChatPanel({ roomId, open, onClose, mobile = false, class
 
       <div className="flex items-center justify-between border-b border-[#334155] px-4 py-3">
         <h2 className="text-base font-semibold text-white">Chat</h2>
-        <button onClick={onClose} className="rounded-full p-2 text-slate-300 hover:bg-[#334155] hover:text-white">
+        <button type="button" onClick={onClose} className="rounded-full p-2 text-slate-300 hover:bg-[#334155] hover:text-white" aria-label="Cerrar chat">
           <CloseIcon />
         </button>
       </div>
 
-      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3">
+      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3" role="log" aria-label="Mensajes del chat" aria-live="polite" aria-relevant="additions text">
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((n) => (
@@ -154,6 +154,7 @@ export default function ChatPanel({ roomId, open, onClose, mobile = false, class
 
       {!isNearBottom && newMessagesCount > 0 && !open && (
         <button
+          type="button"
           onClick={scrollToBottom}
           className="mx-auto mb-3 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg"
         >

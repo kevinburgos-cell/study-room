@@ -203,18 +203,19 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
                   </button>
                 </div>
               ) : (
-                <div className="rooms-grid">
+                <ul className="rooms-grid" style={{ listStyle: 'none', padding: 0 }}>
                   {myRooms.map((room) => (
-                    <RoomCard
-                      key={room.id}
-                      room={room}
-                      currentUserUid={user?.uid || ''}
-                      onEdit={triggerEdit}
-                      onDelete={triggerDelete}
-                      onEnter={handleEnterRoom}
-                    />
+                    <li key={room.id}>
+                      <RoomCard
+                        room={room}
+                        currentUserUid={user?.uid || ''}
+                        onEdit={triggerEdit}
+                        onDelete={triggerDelete}
+                        onEnter={handleEnterRoom}
+                      />
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </section>
 
@@ -229,18 +230,19 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
                   Aún no participas en ninguna sala como invitado. ¡Pide un código para unirte!
                 </div>
               ) : (
-                <div className="rooms-grid">
+                <ul className="rooms-grid" style={{ listStyle: 'none', padding: 0 }}>
                   {guestRooms.map((room) => (
-                    <RoomCard
-                      key={room.id}
-                      room={room}
-                      currentUserUid={user?.uid || ''}
-                      onEdit={triggerEdit}
-                      onDelete={triggerDelete}
-                      onEnter={handleEnterRoom}
-                    />
+                    <li key={room.id}>
+                      <RoomCard
+                        room={room}
+                        currentUserUid={user?.uid || ''}
+                        onEdit={triggerEdit}
+                        onDelete={triggerDelete}
+                        onEnter={handleEnterRoom}
+                      />
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </section>
           </div>

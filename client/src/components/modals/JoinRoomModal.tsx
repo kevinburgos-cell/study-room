@@ -3,6 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { joinRoomWithCode } from '../../hooks/useRooms';
 import { Room } from '../../types/room.types';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface JoinRoomModalProps {
   isOpen: boolean;
@@ -17,14 +18,19 @@ export default function JoinRoomModal({ isOpen, onClose, onJoined, currentUser }
   const [error, setError] = useState('');
   const [previewRoom, setPreviewRoom] = useState<Room | null>(null);
 
-  if (!isOpen) return null;
-
   const handleReset = () => {
     setCode('');
     setError('');
     setPreviewRoom(null);
     setLoading(false);
   };
+
+  const modalRef = useFocusTrap(isOpen, () => {
+    handleReset();
+    onClose();
+  });
+
+  if (!isOpen) return null;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +103,7 @@ export default function JoinRoomModal({ isOpen, onClose, onJoined, currentUser }
 
   return (
     <div className="modal-overlay" onClick={() => { handleReset(); onClose(); }}>
-      <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content modal-content-sm" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>
             {previewRoom ? 'Confirmar Entrada' : 'Unirse con Código'}

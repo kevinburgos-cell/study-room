@@ -40,6 +40,7 @@ export default function VideoTile({
   const hasVideoTrack = (stream?.getVideoTracks()?.length ?? 0) > 0;
   const shouldShowVideo = hasVideoTrack && (videoEnabled || sharing);
   const showAvatar = !shouldShowVideo;
+  const mediaLabel = `${audioEnabled ? 'audio activado' : 'audio silenciado'}, ${shouldShowVideo ? 'video activado' : 'video desactivado'}`;
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -70,7 +71,11 @@ export default function VideoTile({
   const initial = username ? username[0].toUpperCase() : 'U';
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg bg-black shadow-[0_18px_40px_rgba(2,6,23,0.42)]">
+    <div
+      className="relative h-full w-full overflow-hidden rounded-lg bg-black shadow-[0_18px_40px_rgba(2,6,23,0.42)]"
+      role="gridcell"
+      aria-label={`${username}, ${mediaLabel}`}
+    >
       <video
         ref={videoRef}
         autoPlay

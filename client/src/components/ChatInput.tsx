@@ -63,7 +63,6 @@ export default function ChatInput({ onSendMessage, onSent, isLoading, error }: C
               padding: '0.65rem 0.75rem',
               fontSize: '0.9rem',
               resize: 'none',
-              outline: 'none',
               boxSizing: 'border-box',
               minHeight: '38px',
               fontFamily: 'inherit',

@@ -99,16 +99,16 @@ export default function RoomBottombar({
   onLeave,
 }: RoomBottombarProps) {
   return (
-    <footer className="shrink-0 bg-[#1E293B] border-t border-[#334155] h-[64px] md:h-[72px] text-white px-4 md:px-6 flex items-center justify-between">
-      {/* Left spacer/aligner to balance out ml-auto on Salir button or keep controls centered */}
+    <footer className="shrink-0 bg-[#1E293B] border-t border-[#334155] h-[64px] md:h-[72px] text-white px-4 md:px-6 flex items-center justify-between" aria-label="Controles de la sala">
       <div className="flex-1 hidden md:block" />
 
-      {/* Center Controls */}
       <div className="flex items-center justify-center gap-2 md:gap-3 flex-1 md:flex-initial">
-        {/* Mic Button */}
         <button
+          type="button"
           onClick={onToggleAudio}
-          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px]"
+          aria-label={isAudioEnabled ? 'Silenciar micrófono' : 'Activar micrófono'}
+          aria-pressed={!isAudioEnabled}
         >
           <div
             className={[
@@ -123,10 +123,12 @@ export default function RoomBottombar({
           </span>
         </button>
 
-        {/* Camera Button */}
         <button
+          type="button"
           onClick={onToggleVideo}
-          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px]"
+          aria-label={isVideoEnabled ? 'Apagar cámara' : 'Encender cámara'}
+          aria-pressed={!isVideoEnabled}
         >
           <div
             className={[
@@ -141,10 +143,12 @@ export default function RoomBottombar({
           </span>
         </button>
 
-        {/* Screen Share Button */}
         <button
+          type="button"
           onClick={onToggleScreenShare}
-          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px]"
+          aria-label={isScreenSharing ? 'Dejar de compartir pantalla' : 'Compartir pantalla'}
+          aria-pressed={isScreenSharing}
         >
           <div
             className={[
@@ -159,10 +163,12 @@ export default function RoomBottombar({
           </span>
         </button>
 
-        {/* People Button */}
         <button
+          type="button"
           onClick={onTogglePeople}
-          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px]"
+          aria-label="Abrir panel de participantes"
+          aria-expanded={peopleOpen}
         >
           <div
             className={[
@@ -184,10 +190,12 @@ export default function RoomBottombar({
           </span>
         </button>
 
-        {/* Chat Button */}
         <button
+          type="button"
           onClick={onToggleChat}
-          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px]"
+          aria-label="Abrir chat"
+          aria-expanded={chatOpen}
         >
           <div
             className={[
@@ -210,11 +218,12 @@ export default function RoomBottombar({
         </button>
       </div>
 
-      {/* Right Controls / Salir Button */}
-      <div className="flex-1 flex items-center justify-end">
+        <div className="flex-1 flex items-center justify-end">
         <button
+          type="button"
           onClick={onLeave}
-          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px] focus:outline-none"
+          className="flex flex-col items-center justify-center min-w-[48px] md:min-w-[80px]"
+          aria-label="Salir de la sala"
         >
           <div className="rounded-full p-2.5 md:p-3 bg-red-600 hover:bg-red-500 transition-all duration-200 text-white flex items-center justify-center">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

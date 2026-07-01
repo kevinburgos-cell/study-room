@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { updateRoom } from '../../hooks/useRooms';
 import { Room } from '../../types/room.types';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface EditRoomModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ export default function EditRoomModal({ isOpen, onClose, room, onUpdated }: Edit
   const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const modalRef = useFocusTrap(isOpen, onClose);
 
   useEffect(() => {
     if (room) {
@@ -63,7 +66,7 @@ export default function EditRoomModal({ isOpen, onClose, room, onUpdated }: Edit
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Editar Sala</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar modal">

@@ -41,6 +41,10 @@ export default function RoomPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isPointerActive, setIsPointerActive] = useState(false);
+  const [liveMessage, setLiveMessage] = useState('');
+  const [previousAudioEnabled, setPreviousAudioEnabled] = useState<boolean | null>(null);
+  const [previousScreenSharing, setPreviousScreenSharing] = useState<boolean | null>(null);
+  const [previousMemberCount, setPreviousMemberCount] = useState<number | null>(null);
 
   useEffect(() => {
     const handleRoomDeleted = () => setIsDeletedModalOpen(true);
@@ -135,6 +139,19 @@ export default function RoomPage() {
   }, [mobileSheet]);
 
   useEffect(() => {
+    if (previousMemberCount === null) {
+      setPreviousMemberCount(onlineUsers.length);
+      return;
+    }
+    if (onlineUsers.length > previousMemberCount) {
+      setLiveMessage('Un participante se unió a la sala.');
+    } else if (onlineUsers.length < previousMemberCount) {
+      setLiveMessage('Un participante salió de la sala.');
+    }
+    setPreviousMemberCount(onlineUsers.length);
+  }, [onlineUsers.length, previousMemberCount]);
+
+  useEffect(() => {
     if (!isDesktop) return;
     if (peopleOpen || chatOpen) {
       setShowControls(true);
@@ -163,9 +180,13 @@ export default function RoomPage() {
   useEffect(() => {
     const onNewMessage = () => {
       if (isDesktop) {
-        if (!chatOpen) setUnreadChatCount((count) => count + 1);
+        if (!chatOpen) {
+          setUnreadChatCount((count) => count + 1);
+          setLiveMessage('Nuevo mensaje en el chat.');
+        }
       } else if (mobileSheet !== 'chat') {
         setUnreadChatCount((count) => count + 1);
+        setLiveMessage('Nuevo mensaje en el chat.');
       }
     };
     socket.on('new-message', onNewMessage);
@@ -173,6 +194,28 @@ export default function RoomPage() {
       socket.off('new-message', onNewMessage);
     };
   }, [chatOpen, mobileSheet, isDesktop]);
+
+  useEffect(() => {
+    if (previousAudioEnabled === null) {
+      setPreviousAudioEnabled(isAudioEnabled);
+      return;
+    }
+    if (previousAudioEnabled !== isAudioEnabled) {
+      setLiveMessage(isAudioEnabled ? 'Micrófono activado.' : 'Micrófono silenciado.');
+      setPreviousAudioEnabled(isAudioEnabled);
+    }
+  }, [isAudioEnabled, previousAudioEnabled]);
+
+  useEffect(() => {
+    if (previousScreenSharing === null) {
+      setPreviousScreenSharing(isScreenSharing);
+      return;
+    }
+    if (previousScreenSharing !== isScreenSharing) {
+      setLiveMessage(isScreenSharing ? 'Compartición de pantalla iniciada.' : 'Compartición de pantalla detenida.');
+      setPreviousScreenSharing(isScreenSharing);
+    }
+  }, [isScreenSharing, previousScreenSharing]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -228,7 +271,10 @@ export default function RoomPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-white">
+    <main className="flex min-h-screen flex-col bg-slate-950 text-white">
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {liveMessage}
+      </div>
       {showReconnectingBanner && <div className="bg-amber-400 px-4 py-2 text-center text-sm font-semibold text-black">Conexión perdida. Intentando reconectar...</div>}
       {showConnectedSuccess && <div className="bg-emerald-500 px-4 py-2 text-center text-sm font-semibold text-white">Conexión restablecida con éxito.</div>}
 
@@ -260,7 +306,7 @@ export default function RoomPage() {
             />
 
             {isDesktop && shouldRenderDesktopPeople && (
-              <div className={`absolute top-[72px] z-20 transition-all duration-300 ${chatOpen ? 'right-[336px]' : 'right-4'}`} data-participants-panel>
+              <aside className={`absolute top-[72px] z-20 transition-all duration-300 ${chatOpen ? 'right-[336px]' : 'right-4'}`} data-participants-panel aria-label="Participantes">
                 <ParticipantsPanel
                   members={onlineUsers}
                   hostUid={room!.hostUid}
@@ -269,7 +315,7 @@ export default function RoomPage() {
                   open
                   onClose={() => setPeopleOpen(false)}
                 />
-              </div>
+              </aside>
             )}
           </div>
 
@@ -399,6 +445,6 @@ export default function RoomPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

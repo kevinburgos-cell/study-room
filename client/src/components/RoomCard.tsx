@@ -14,16 +14,25 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
   const isHost = room.hostUid === currentUserUid;
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside or pressing Escape
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && menuOpen) {
+        setMenuOpen(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <article 
@@ -35,6 +44,13 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
         position: 'relative',
         minHeight: '13rem',
         padding: '1.5rem'
+      }}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && e.target === e.currentTarget) {
+          e.preventDefault();
+          onEnter(room);
+        }
       }}
       aria-label={`Sala ${room.name}`}
     >
@@ -70,18 +86,38 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
                   e.stopPropagation();
                   setMenuOpen(!menuOpen);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setMenuOpen(!menuOpen);
+                  } else if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                  }
+                }}
                 aria-label="Opciones de sala"
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
               >
                 ⋮
               </button>
               {menuOpen && (
-                <div className="dropdown-menu">
+                <div className="dropdown-menu" role="menu">
                   <button 
                     type="button"
                     className="dropdown-item" 
-                    onClick={() => {
+                    role="menuitem"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setMenuOpen(false);
                       onEdit(room);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.stopPropagation();
+                        setMenuOpen(false);
+                      }
                     }}
                   >
                     ✏️ Editar
@@ -89,9 +125,17 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
                   <button 
                     type="button"
                     className="dropdown-item dropdown-item-danger" 
-                    onClick={() => {
+                    role="menuitem"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setMenuOpen(false);
                       onDelete(room);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.stopPropagation();
+                        setMenuOpen(false);
+                      }
                     }}
                   >
                     🗑️ Eliminar
@@ -134,7 +178,10 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
 
         <button
           type="button"
-          onClick={() => onEnter(room)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEnter(room);
+          }}
           className="btn-secondary interactive-element"
           style={{ 
             width: '100%', 

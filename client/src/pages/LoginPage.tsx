@@ -73,7 +73,7 @@ export default function LoginPage() {
     <main className="auth-container split-layout" aria-label="Página de inicio de sesión de StudyRoom">
       <section className="info-panel" aria-labelledby="branding-heading">
         <div className="branding-container">
-          <div className="branding-logo">SR</div>
+          <div className="branding-logo" tabIndex={1} aria-label="Logo de StudyRoom">SR</div>
           <span className="branding-text">StudyRoom</span>
         </div>
 
@@ -121,11 +121,12 @@ export default function LoginPage() {
           </div>
 
           <div className="toggle-tab-container" role="tablist">
-            <button className="toggle-tab active" role="tab" aria-selected="true">
+            <button className="toggle-tab active" role="tab" aria-selected="true" tabIndex={-1}>
               Iniciar sesión
             </button>
             <Link
               to="/register"
+              tabIndex={6}
               className="toggle-tab inactive"
               role="tab"
               aria-selected="false"
@@ -148,9 +149,11 @@ export default function LoginPage() {
               </label>
               <input
                 id="email-login"
+                tabIndex={2}
                 type="email"
                 className="form-input-light"
                 placeholder="tu@correo.com"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={submitting}
@@ -165,13 +168,15 @@ export default function LoginPage() {
               </div>
               <div className="password-input-wrapper">
                 <input
-                  id="password-login"
-                  type={showPassword ? 'text' : 'password'}
-                  className="form-input-light password-field"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={submitting}
+                id="password-login"
+                tabIndex={3}
+                type={showPassword ? 'text' : 'password'}
+                className="form-input-light password-field"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
                 />
                 <button
                   type="button"
@@ -184,7 +189,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary-light" disabled={submitting}>
+            <button type="submit" tabIndex={4} className="btn-primary-light" disabled={submitting}>
               {submitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
           </form>
@@ -195,6 +200,7 @@ export default function LoginPage() {
 
           <button
             type="button"
+            tabIndex={5}
             className="btn-google-light"
             onClick={handleGoogleSignIn}
             disabled={submitting}

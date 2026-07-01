@@ -170,7 +170,7 @@ export default function VideoGrid({
   }
 
   return (
-    <div className={`relative h-full w-full overflow-y-auto bg-black ${className}`}>
+    <div className={`relative h-full w-full overflow-y-auto bg-black ${className}`} role="grid" aria-label="Videos de participantes">
       <div
         className="grid min-h-full w-full auto-rows-fr content-center gap-2 p-2"
         style={getMeetGridStyle(totalParticipants)}

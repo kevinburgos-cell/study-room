@@ -4,6 +4,28 @@
 @tailwind components;
 @tailwind utilities;
 
+:focus-visible {
+  outline: 3px solid #3B82F6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 :root {
   --bg-main: #0f172a;
   --bg-surface: #1e293b;
@@ -26,6 +48,14 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+button:focus,
+input:focus,
+textarea:focus,
+select:focus,
+a:focus {
+  outline: none;
+}
 
 html { background: var(--bg-main); }
 
@@ -63,8 +93,8 @@ a:hover { color: #bfdbfe; }
 
 button, a, input, textarea, summary { min-height: 44px; }
 
-.interactive-element { transition: all 0.2s ease; outline: none; }
-.interactive-element:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.interactive-element { transition: all 0.2s ease; }
+.interactive-element:focus-visible { outline: 3px solid #3B82F6; outline-offset: 2px; }
 
 .glass-panel {
   background: var(--bg-surface);
@@ -341,7 +371,6 @@ button, a, input, textarea, summary { min-height: 44px; }
 .form-input:focus, .form-input-light:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
-  outline: none;
 }
 
 .delete-confirm-invalid {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { deleteRoom } from '../../hooks/useRooms';
 import { Room } from '../../types/room.types';
 import { socket } from '../../socket/socket';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface DeleteRoomModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ interface DeleteRoomModalProps {
 export default function DeleteRoomModal({ isOpen, onClose, room, onDeleted }: DeleteRoomModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const modalRef = useFocusTrap(isOpen, onClose);
 
   if (!isOpen || !room) return null;
 
@@ -38,7 +41,7 @@ export default function DeleteRoomModal({ isOpen, onClose, room, onDeleted }: De
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content modal-content-sm" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title" style={{ color: 'var(--color-danger)', fontSize: '1.25rem' }}>Eliminar Sala</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar modal">

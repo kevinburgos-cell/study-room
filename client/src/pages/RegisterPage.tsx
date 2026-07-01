@@ -139,7 +139,7 @@ export default function RegisterPage() {
     <main className="auth-container split-layout" aria-label="Página de registro de cuenta de StudyRoom">
       <section className="info-panel" aria-labelledby="branding-heading">
         <div className="branding-container">
-          <div className="branding-logo">SR</div>
+          <div className="branding-logo" tabIndex={1} aria-label="Logo de StudyRoom">SR</div>
           <span className="branding-text">StudyRoom</span>
         </div>
 
@@ -195,6 +195,7 @@ export default function RegisterPage() {
           <div className="toggle-tab-container" role="tablist">
             <Link
               to="/login"
+              tabIndex={7}
               className="toggle-tab inactive"
               role="tab"
               aria-selected="false"
@@ -202,7 +203,7 @@ export default function RegisterPage() {
             >
               Iniciar sesión
             </Link>
-            <button className="toggle-tab active" role="tab" aria-selected="true">
+            <button className="toggle-tab active" role="tab" aria-selected="true" tabIndex={-1}>
               Registrarse
             </button>
           </div>
@@ -230,9 +231,11 @@ export default function RegisterPage() {
               </label>
               <input
                 id="username-register"
+                tabIndex={2}
                 type="text"
                 className="form-input-light"
                 placeholder="ej. kevinburgos"
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={submitting}
@@ -256,9 +259,11 @@ export default function RegisterPage() {
                   </label>
                   <input
                     id="email-register"
+                    tabIndex={3}
                     type="email"
                     className="form-input-light"
                     placeholder="tu@correo.com"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={submitting}
@@ -272,9 +277,11 @@ export default function RegisterPage() {
                   <div className="password-input-wrapper">
                     <input
                       id="password-register"
+                      tabIndex={4}
                       type={showPassword ? 'text' : 'password'}
                       className="form-input-light password-field"
                       placeholder="Min. 6 caracteres"
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={submitting}
@@ -294,6 +301,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
+              tabIndex={5}
               className="btn-primary-light"
               disabled={submitting || checkingUsername || usernameTaken}
             >
@@ -309,12 +317,11 @@ export default function RegisterPage() {
             <>
               <div className="social-divider">
                 <span>o continúa con</span>
-                
-              
               </div>
 
               <button
                 type="button"
+                tabIndex={6}
                 className="btn-google-light"
                 onClick={handleGoogle}
                 disabled={submitting}

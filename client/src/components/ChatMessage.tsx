@@ -22,7 +22,7 @@ export default function ChatMessage({ message, isMe }: ChatMessageProps) {
   };
 
   return (
-    <div
+    <article
       style={{
         display: 'flex',
         flexDirection: isMe ? 'row-reverse' : 'row',
@@ -120,6 +120,6 @@ export default function ChatMessage({ message, isMe }: ChatMessageProps) {
           </span>
         )}
       </div>
-    </div>
+    </article>
   );
 }

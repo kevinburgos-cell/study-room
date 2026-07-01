@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createRoom } from '../../hooks/useRooms';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ export default function CreateRoomModal({ isOpen, onClose, onCreated, currentUse
   const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const modalRef = useFocusTrap(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -56,7 +59,7 @@ export default function CreateRoomModal({ isOpen, onClose, onCreated, currentUse
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Crear Sala de Estudio</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar modal">
