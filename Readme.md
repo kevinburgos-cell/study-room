@@ -6,6 +6,8 @@ de pantalla en tiempo real.
 
 **Proyecto Integrador I — Universidad del Valle — 2026-1**
 
+✅ **Accesibilidad WCAG 2 AA**: Todos los elementos cumplen con los requisitos de contraste de colores.
+
 ---
 
 ## 🚀 Links en Producción
