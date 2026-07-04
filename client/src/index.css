@@ -49,11 +49,11 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-button:focus,
-input:focus,
-textarea:focus,
-select:focus,
-a:focus {
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
   outline: none;
 }
 
