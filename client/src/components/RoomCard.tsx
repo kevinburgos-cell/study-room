@@ -187,8 +187,8 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
             width: '100%', 
             padding: '0.5rem 1rem', 
             fontSize: '0.875rem', 
-            borderColor: 'var(--color-primary)', 
-            color: 'var(--color-primary)',
+            borderColor: '#60a5fa', 
+            color: '#60a5fa',
             background: 'transparent'
           }}
           aria-label={`Entrar a la sala ${room.name}`}
