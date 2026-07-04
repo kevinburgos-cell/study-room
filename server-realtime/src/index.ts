@@ -7,6 +7,7 @@ import admin from 'firebase-admin';
 import fs from 'fs';
 import path from 'path';
 import { initializeSockets } from './socket';
+import { connectedUsers } from './socket/roomHandler';
 
 // Load environment variables
 dotenv.config();
@@ -25,6 +26,15 @@ app.use(express.json());
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'study-room-realtime' });
+});
+
+// Active users count per room endpoint
+app.get('/rooms/active-counts', (req, res) => {
+  const counts: { [roomId: string]: number } = {};
+  for (const roomId in connectedUsers) {
+    counts[roomId] = connectedUsers[roomId].length;
+  }
+  res.json(counts);
 });
 
 // Initialize Firebase Admin SDK

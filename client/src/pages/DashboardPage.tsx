@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoomsList } from '../hooks/useRooms';
@@ -20,6 +20,27 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
 
   // Firestore Rooms Hook
   const { myRooms, guestRooms, loading } = useRoomsList(user?.uid);
+
+  const [activeCounts, setActiveCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchActiveCounts = async () => {
+      try {
+        const url = (import.meta.env.VITE_REALTIME_URL || 'http://localhost:4000') + '/rooms/active-counts';
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setActiveCounts(data);
+        }
+      } catch (err) {
+        console.error('Error fetching active user counts:', err);
+      }
+    };
+
+    fetchActiveCounts();
+    const interval = setInterval(fetchActiveCounts, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -153,7 +174,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
             className="btn-secondary interactive-element"
             style={{ width: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', borderColor: 'var(--color-primary)', color: 'var(--text-primary)' }}
           >
-            🔑 Unirse con código
+            🔑 Unirse con ID de sala
           </button>
         </div>
 
@@ -212,6 +233,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
                         onEdit={triggerEdit}
                         onDelete={triggerDelete}
                         onEnter={handleEnterRoom}
+                        activeCount={activeCounts[room.id] || 0}
                       />
                     </li>
                   ))}
@@ -239,6 +261,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
                         onEdit={triggerEdit}
                         onDelete={triggerDelete}
                         onEnter={handleEnterRoom}
+                        activeCount={activeCounts[room.id] || 0}
                       />
                     </li>
                   ))}

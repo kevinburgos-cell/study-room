@@ -40,7 +40,7 @@ export default function JoinRoomModal({ isOpen, onClose, onJoined, currentUser }
     const trimmedCode = code.trim();
 
     if (!trimmedCode) {
-      setError('El código es obligatorio');
+      setError('El ID de la sala es obligatorio');
       return;
     }
 
@@ -50,7 +50,7 @@ export default function JoinRoomModal({ isOpen, onClose, onJoined, currentUser }
       const roomSnap = await getDoc(roomRef);
 
       if (!roomSnap.exists()) {
-        setError('No se encontró ninguna sala con ese código');
+        setError('No se encontró ninguna sala con ese ID');
         setLoading(false);
         return;
       }
@@ -106,7 +106,7 @@ export default function JoinRoomModal({ isOpen, onClose, onJoined, currentUser }
       <div className="modal-content modal-content-sm" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>
-            {previewRoom ? 'Confirmar Entrada' : 'Unirse con Código'}
+            {previewRoom ? 'Confirmar Entrada' : 'Unirse con ID de sala'}
           </h2>
           <button
             type="button"
@@ -128,12 +128,12 @@ export default function JoinRoomModal({ isOpen, onClose, onJoined, currentUser }
           <form onSubmit={handleSearch}>
             <div className="modal-body">
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                Pide el código al anfitrión de la sala para poder ingresar.
+                Pide el ID de la sala al anfitrión para poder ingresar.
               </p>
 
               <div className="form-group">
                 <label className="form-label" htmlFor="room-code">
-                  Código de la sala (ID)
+                  ID de la sala
                 </label>
                 <input
                   id="room-code"

@@ -1,6 +1,7 @@
 import React from 'react';
 
 interface RoomTopbarProps {
+  roomId: string;
   roomName: string;
   elapsedTime: string;
   participantCount: number;
@@ -19,11 +20,28 @@ function PeopleIcon() {
   );
 }
 
-export default function RoomTopbar({ roomName, elapsedTime, participantCount, isConnected = true }: RoomTopbarProps & { onLeave?: () => void }) {
+export default function RoomTopbar({ roomId, roomName, elapsedTime, participantCount, isConnected = true }: RoomTopbarProps) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <header className="flex h-[56px] shrink-0 items-center bg-[#1E293B] px-4 text-white">
-      <div className="flex flex-1 items-center">
+      <div className="flex flex-1 items-center gap-3">
         <h1 className="truncate text-base font-semibold text-white">{roomName}</h1>
+        <button
+          onClick={handleCopyId}
+          className="flex items-center gap-1 rounded bg-slate-800 hover:bg-slate-700 px-2 py-0.5 text-xs text-slate-300 border border-slate-700 transition"
+          style={{ minHeight: 'auto', height: '24px' }}
+          title="Copiar ID de la sala"
+        >
+          <span style={{ fontSize: '0.75rem' }}>ID: <code className="text-blue-300 font-semibold">{roomId}</code></span>
+          <span style={{ fontSize: '0.75rem' }}>{copied ? '📋 Copiado' : '🔗'}</span>
+        </button>
       </div>
 
       <div className="flex flex-1 items-center justify-center gap-3">

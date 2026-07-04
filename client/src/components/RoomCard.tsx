@@ -7,9 +7,10 @@ interface RoomCardProps {
   onEdit: (room: Room) => void;
   onDelete: (room: Room) => void;
   onEnter: (room: Room) => void;
+  activeCount?: number;
 }
 
-export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnter }: RoomCardProps) {
+export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnter, activeCount = 0 }: RoomCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isHost = room.hostUid === currentUserUid;
   const menuRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,17 @@ export default function RoomCard({ room, currentUserUid, onEdit, onDelete, onEnt
             {room.isPrivate && (
               <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                 🔒 Privada
+              </span>
+            )}
+
+            {/* Active Users Badge */}
+            {activeCount > 0 ? (
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                ● {activeCount} {activeCount === 1 ? 'activo' : 'activos'}
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                ○ Vacía
               </span>
             )}
           </div>

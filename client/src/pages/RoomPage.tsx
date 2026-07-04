@@ -45,6 +45,8 @@ export default function RoomPage() {
   const [previousAudioEnabled, setPreviousAudioEnabled] = useState<boolean | null>(null);
   const [previousScreenSharing, setPreviousScreenSharing] = useState<boolean | null>(null);
   const [previousMemberCount, setPreviousMemberCount] = useState<number | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [hasShownSuccess, setHasShownSuccess] = useState(false);
 
   useEffect(() => {
     const handleRoomDeleted = () => setIsDeletedModalOpen(true);
@@ -101,6 +103,7 @@ export default function RoomPage() {
     localStream,
     peers,
     permissionError,
+    isConnecting: isConnectingRTC,
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
@@ -212,10 +215,19 @@ export default function RoomPage() {
       return;
     }
     if (previousScreenSharing !== isScreenSharing) {
-      setLiveMessage(isScreenSharing ? 'Compartición de pantalla iniciada.' : 'Compartición de pantalla detenida.');
+      const msg = isScreenSharing ? 'Compartición de pantalla iniciada con éxito.' : 'Compartición de pantalla detenida.';
+      setLiveMessage(msg);
+      showToast(msg, 'success');
       setPreviousScreenSharing(isScreenSharing);
     }
   }, [isScreenSharing, previousScreenSharing]);
+
+  useEffect(() => {
+    if (!loadingRoom && room && !hasShownSuccess) {
+      setShowSuccessModal(true);
+      setHasShownSuccess(true);
+    }
+  }, [loadingRoom, room, hasShownSuccess]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -279,6 +291,7 @@ export default function RoomPage() {
       {showConnectedSuccess && <div className="bg-emerald-500 px-4 py-2 text-center text-sm font-semibold text-white">Conexión restablecida con éxito.</div>}
 
       <RoomTopbar
+        roomId={room!.id}
         roomName={room!.name}
         elapsedTime={new Date(elapsedSeconds * 1000).toISOString().slice(11, 19)}
         participantCount={onlineUsers.length}
@@ -292,6 +305,12 @@ export default function RoomPage() {
             {shouldShowPermissionPanel && (
               <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80">
                 <PermissionErrorPanel errorType={permissionError || 'UnknownError'} onRetry={retryPermissions} onContinueWithoutVideo={continueWithoutVideo} />
+              </div>
+            )}
+            {isConnectingRTC && (
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/80 text-white gap-3">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="text-sm font-medium">Estableciendo conexión multimedia...</p>
               </div>
             )}
             <VideoGrid
@@ -424,6 +443,29 @@ export default function RoomPage() {
               <button type="button" className="w-full rounded-xl border border-red-500/30 px-4 py-3 font-semibold text-red-200" onClick={handleLeavePermanently}>Salir y abandonar sala permanentemente</button>
               <button type="button" className="w-full rounded-xl px-4 py-3 font-semibold text-slate-300" onClick={() => setIsLeaveConfirmOpen(false)}>Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-slate-900 p-6 text-center text-white shadow-2xl">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+              <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="mb-2 text-2xl font-bold text-emerald-400">¡Ingreso Exitoso!</h2>
+            <p className="mb-6 text-sm text-slate-300">
+              Has entrado con éxito a la sala <strong className="text-white">"{room?.name}"</strong> como {room?.hostUid === user?.uid ? 'anfitrión' : 'invitado'}.
+            </p>
+            <button
+              type="button"
+              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 font-semibold text-white transition duration-200"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              Comenzar
+            </button>
           </div>
         </div>
       )}
