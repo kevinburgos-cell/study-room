@@ -116,8 +116,14 @@ export default function RoomPage() {
   } = useWebRTC(id, onlineUsers);
 
   const onToggleScreenShare = async () => {
-    if (isScreenSharing) await stopScreenShare();
-    else await startScreenShare();
+    try {
+      if (isScreenSharing) await stopScreenShare();
+      else await startScreenShare();
+    } catch (err: any) {
+      if (err?.name !== 'NotAllowedError') {
+        showToast(err?.message || 'Error al iniciar la compartición de pantalla', 'error');
+      }
+    }
   };
 
   const peerMediaStates = usePeerMediaState();

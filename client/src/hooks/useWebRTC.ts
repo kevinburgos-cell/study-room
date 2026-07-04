@@ -730,9 +730,10 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
         console.log('Usuario canceló compartir pantalla');
-        return;
+        throw err;
       }
       console.error('Error compartiendo pantalla:', err);
+      throw err;
     }
   }, [emitMediaState, renegotiatePeer]);
 
