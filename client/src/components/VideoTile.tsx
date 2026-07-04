@@ -34,6 +34,7 @@ export default function VideoTile({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isMountedRef = useRef(true);
   const audioEnabled = audioEnabledProp ?? mediaState?.audioEnabled ?? true;
   const videoEnabled = videoEnabledProp ?? mediaState?.videoEnabled ?? true;
   const sharing = mediaState?.isScreenSharing ?? isScreenSharing;
@@ -43,29 +44,64 @@ export default function VideoTile({
   const mediaLabel = `${audioEnabled ? 'audio activado' : 'audio silenciado'}, ${shouldShowVideo ? 'video activado' : 'video desactivado'}`;
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch((err) => {
-        console.warn('[VideoTile] Autoplay blocked:', err);
-      });
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+    const playVideo = async () => {
+      try {
+        await video.play();
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+        if (err?.name === 'NotAllowedError') {
+          console.warn('[VideoTile] Autoplay not allowed:', username);
+          return;
+        }
+        console.warn('[VideoTile] Video play failed:', err);
+      }
+    };
+
+    playVideo();
+
+    return () => {
+      video.pause();
+      video.srcObject = null;
+    };
   }, [stream]);
 
   useEffect(() => {
-    if (shouldShowVideo && videoRef.current) {
-      videoRef.current.play().catch((err) => {
-        console.warn('[VideoTile] Video play failed:', err);
-      });
-    }
-  }, [shouldShowVideo]);
+    const video = videoRef.current;
+    if (!shouldShowVideo || !video || !stream || !isMountedRef.current) return;
+
+    video.play().catch((err: any) => {
+      if (err?.name !== 'AbortError') {
+        console.warn('[VideoTile] Video play failed:', err?.message ?? err);
+      }
+    });
+  }, [shouldShowVideo, stream]);
 
   useEffect(() => {
-    if (audioRef.current && stream && !isLocal) {
-      audioRef.current.srcObject = stream;
-      audioRef.current.play().catch((err) => {
+    const audio = audioRef.current;
+    if (!audio || !stream || isLocal) return;
+
+    audio.srcObject = stream;
+    audio.play().catch((err: any) => {
+      if (err?.name !== 'AbortError') {
         console.warn('[VideoTile] Audio autoplay blocked:', err);
-      });
-    }
+      }
+    });
+
+    return () => {
+      audio.pause();
+      audio.srcObject = null;
+    };
   }, [stream, isLocal]);
 
   const initial = username ? username[0].toUpperCase() : 'U';

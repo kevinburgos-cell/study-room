@@ -44,6 +44,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   const isVideoEnabledRef = useRef(isVideoEnabled);
   const isScreenSharingRef = useRef(isScreenSharing);
   const initPromiseRef = useRef<Promise<MediaStream | null> | null>(null);
+  const iceCandidateQueueRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   useEffect(() => {
     peersRef.current = peers;
@@ -133,12 +134,35 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       pc.close();
       peerConnectionsRef.current.delete(socketId);
     }
+    iceCandidateQueueRef.current.delete(socketId);
     remoteMediaStatesRef.current.delete(socketId);
     setPeers((prev) => {
       const next = new Map(prev);
       next.delete(socketId);
       return next;
     });
+  }, []);
+
+  const queueIceCandidate = useCallback((socketId: string, candidate: RTCIceCandidateInit) => {
+    const queue = iceCandidateQueueRef.current.get(socketId) ?? [];
+    queue.push(candidate);
+    iceCandidateQueueRef.current.set(socketId, queue);
+    console.log('[WebRTC] ICE candidate queued for:', socketId);
+  }, []);
+
+  const flushIceCandidateQueue = useCallback(async (socketId: string, pc: RTCPeerConnection) => {
+    const queue = iceCandidateQueueRef.current.get(socketId) ?? [];
+    if (queue.length === 0) return;
+
+    console.log('[WebRTC] Flushing ICE queue for:', socketId, 'candidates:', queue.length);
+    for (const candidate of queue) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.error('[WebRTC] Error flushing ICE candidate:', err);
+      }
+    }
+    iceCandidateQueueRef.current.delete(socketId);
   }, []);
 
   const initLocalStream = useCallback(async (withVideo = true, withAudio = true) => {
@@ -332,12 +356,39 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       };
 
       pc.onconnectionstatechange = () => {
-        console.log(`[useWebRTC] Connection state after track change: ${pc.connectionState}`);
-        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        const state = pc.connectionState;
+        console.log('[WebRTC] Connection state with', peerUsername, ':', state);
+
+        if (state === 'failed') {
+          console.log('[WebRTC] Connection failed, attempting ICE restart');
+          pc.restartIce();
+
+          setTimeout(() => {
+            const currentPc = peerConnectionsRef.current.get(targetSocketId);
+            if (currentPc !== pc || pc.connectionState !== 'failed') return;
+            console.log('[WebRTC] ICE restart failed, closing connection');
+            closeConnection(targetSocketId);
+            if (roomIdRef.current && socket.connected) {
+              socket.emit('request-rejoin', { roomId: roomIdRef.current });
+            }
+          }, 5000);
+        }
+
+        if (state === 'disconnected') {
+          setTimeout(() => {
+            const currentPc = peerConnectionsRef.current.get(targetSocketId);
+            if (currentPc !== pc) return;
+            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+              closeConnection(targetSocketId);
+              if (roomIdRef.current && socket.connected) {
+                socket.emit('request-rejoin', { roomId: roomIdRef.current });
+              }
+            }
+          }, 3000);
+        }
+
+        if (state === 'closed') {
           closeConnection(targetSocketId);
-          if (roomIdRef.current && socket.connected) {
-            socket.emit('request-rejoin', { roomId: roomIdRef.current });
-          }
         }
       };
 
@@ -421,6 +472,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         await pc.setLocalDescription({ type: 'rollback' } as RTCSessionDescriptionInit);
       }
       await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+      await flushIceCandidateQueue(payload.fromSocketId, pc);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit('webrtc-answer', {
@@ -433,15 +485,33 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
     const handleAnswer = async (payload: { answer: RTCSessionDescriptionInit; fromSocketId: string }) => {
       const pc = peerConnectionsRef.current.get(payload.fromSocketId);
       if (pc) {
-        if (pc.signalingState === 'stable') return;
+        if (pc.signalingState === 'stable') {
+          if (pc.remoteDescription) {
+            await flushIceCandidateQueue(payload.fromSocketId, pc);
+          }
+          return;
+        }
         await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+        await flushIceCandidateQueue(payload.fromSocketId, pc);
       }
     };
 
     const handleIceCandidate = async (payload: { candidate: RTCIceCandidateInit; fromSocketId: string }) => {
       const pc = peerConnectionsRef.current.get(payload.fromSocketId);
-      if (pc) {
+      if (!pc) {
+        queueIceCandidate(payload.fromSocketId, payload.candidate);
+        return;
+      }
+
+      if (!pc.remoteDescription) {
+        queueIceCandidate(payload.fromSocketId, payload.candidate);
+        return;
+      }
+
+      try {
         await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+      } catch (err) {
+        console.error('[WebRTC] Error adding ICE candidate:', err);
       }
     };
 
@@ -480,6 +550,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
         if (info?.uid === payload.uid) {
           pc.close();
           peerConnectionsRef.current.delete(socketId);
+          iceCandidateQueueRef.current.delete(socketId);
           remoteMediaStatesRef.current.delete(socketId);
           setPeers((prev) => {
             const next = new Map(prev);
@@ -505,7 +576,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       socket.off('peer-media-state', handleMediaState);
       socket.off('user-left', handleUserLeft);
     };
-  }, [roomId, createPeerConnection, initLocalStream]);
+  }, [roomId, createPeerConnection, flushIceCandidateQueue, initLocalStream, queueIceCandidate]);
 
   useEffect(() => {
     initLocalStream();
@@ -520,6 +591,7 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
       }
       peerConnectionsRef.current.forEach((pc) => pc.close());
       peerConnectionsRef.current.clear();
+      iceCandidateQueueRef.current.clear();
       remoteMediaStatesRef.current.clear();
       setPeers(new Map());
     };
