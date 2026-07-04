@@ -78,7 +78,7 @@ export default function ChatInput({ onSendMessage, onSent, isLoading, error }: C
             height: '38px',
             width: '38px',
             borderRadius: '8px',
-            backgroundColor: isDisabled ? '#1e293b' : '#2563eb',
+            backgroundColor: isDisabled ? '#1e293b' : '#1e40af',
             border: 'none',
             color: isDisabled ? '#64748b' : '#ffffff',
             display: 'flex',

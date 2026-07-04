@@ -51,7 +51,7 @@ export default function ChatMessage({ message, isMe }: ChatMessageProps) {
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: isMe ? '#2563eb' : '#475569',
+            backgroundColor: isMe ? '#1e40af' : '#475569',
             color: '#ffffff',
             display: 'flex',
             alignItems: 'center',
@@ -97,7 +97,7 @@ export default function ChatMessage({ message, isMe }: ChatMessageProps) {
             lineHeight: '1.4',
             wordBreak: 'break-word',
             color: '#ffffff',
-            backgroundColor: isMe ? '#2563eb' : '#334155', // bg-blue-600 and bg-[#334155]
+            backgroundColor: isMe ? '#1e40af' : '#334155', // bg-blue-600 and bg-[#334155]
             borderRadius: isMe ? '12px 0px 12px 12px' : '0px 12px 12px 12px',
             border: isMe ? 'none' : '1px solid #475569',
             boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',

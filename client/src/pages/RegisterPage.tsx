@@ -243,7 +243,7 @@ export default function RegisterPage() {
 
               {username.trim().length > 0 && (
                 <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', fontWeight: 600 }}>
-                  {checkingUsername && <span style={{ color: '#2563eb' }}>🔄 Comprobando disponibilidad...</span>}
+                  {checkingUsername && <span style={{ color: '#1e40af' }}>🔄 Comprobando disponibilidad...</span>}
                   {!checkingUsername && usernameTaken && (
                     <span style={{ color: '#dc2626' }}>❌ Username ya existe</span>
                   )}
