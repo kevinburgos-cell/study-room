@@ -87,6 +87,24 @@ async function emailExists(email) {
  *             example:
  *               available: false
  *               message: El nombre de usuario debe tener al menos 3 caracteres.
+ *       401:
+ *         description: No aplica (Público, no requiere autenticación)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: No autorizado
+ *       403:
+ *         description: No aplica (Público, no requiere permisos especiales)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Prohibido
+ *       404:
+ *         description: Ruta no encontrada
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: No encontrado
  *       500:
  *         description: Error del servidor al validar nombre de usuario
  *         content:
@@ -198,6 +216,24 @@ router.post('/check-username', async (req, res) => {
  *                 value:
  *                   error: El correo electrónico ya está registrado.
  *                   code: EMAIL_DUPLICATED
+ *       401:
+ *         description: No autorizado (Público, no requiere token previo)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: No autorizado
+ *       403:
+ *         description: Prohibido (Público, no requiere permisos adicionales)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Prohibido
+ *       404:
+ *         description: Ruta no encontrada
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: No encontrado
  *       500:
  *         description: Error del servidor al registrar usuario
  *         content:
@@ -361,6 +397,18 @@ router.post('/register', async (req, res) => {
  *           application/json:
  *             example:
  *               error: Token de autenticación de Google inválido.
+ *       403:
+ *         description: Acceso denegado (Público, no requiere permisos adicionales)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Prohibido
+ *       404:
+ *         description: Ruta no encontrada
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: No encontrado
  *       500:
  *         description: Error del servidor al verificar Google login
  *         content:
@@ -486,6 +534,18 @@ router.post('/google-login', async (req, res) => {
  *           application/json:
  *             example:
  *               error: Error al completar el onboarding con Google.
+ *       403:
+ *         description: Prohibido (Público, no requiere permisos adicionales)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Prohibido
+ *       404:
+ *         description: Ruta no encontrada
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: No encontrado
  *       500:
  *         description: Error interno al completar onboarding con Google
  *         content:
@@ -590,6 +650,12 @@ router.post('/google-onboard', async (req, res) => {
  *                 username: kevinburgos
  *                 photoURL: null
  *                 createdAt: '2026-05-29T12:08:29.000Z'
+ *       400:
+ *         description: Parámetros inválidos
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Parámetros de petición inválidos.
  *       401:
  *         description: No autorizado
  *         content:
@@ -601,6 +667,12 @@ router.post('/google-onboard', async (req, res) => {
  *               token_invalido:
  *                 value:
  *                   error: Token de autenticación expirado o inválido.
+ *       403:
+ *         description: Acceso prohibido (Token no tiene permisos para este recurso)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Acceso prohibido.
  *       404:
  *         description: Usuario no encontrado en la base de datos
  *         content:
@@ -696,17 +768,29 @@ router.get('/me', verifyToken, async (req, res) => {
  *                 username: kevinburgos
  *                 photoURL: null
  *                 createdAt: '2026-05-29T12:08:29.000Z'
+ *       400:
+ *         description: Datos de entrada inválidos (campos faltantes o tipos incorrectos)
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Parámetros de actualización inválidos.
  *       401:
- *         description: No autorizado
+ *         description: No autorizado. Token ausente o expirado.
  *         content:
  *           application/json:
  *             examples:
  *               sin_token:
  *                 value:
- *                   error: No autorizado.
+ *                   error: No autorizado. Formato Bearer Token requerido.
  *               token_invalido:
  *                 value:
- *                   error: Error del servidor al actualizar perfil.
+ *                   error: Token de autenticación expirado o inválido.
+ *       403:
+ *         description: Prohibido. El token no tiene permisos para actualizar este perfil.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Acceso prohibido.
  *       404:
  *         description: Usuario no encontrado
  *         content:

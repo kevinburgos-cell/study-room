@@ -232,6 +232,31 @@ API docs for the StudyRoom backend and realtime socket events.
 ### room-deleted
 - Direction: server -> client
 - Payload: \`{ roomId: string }\`
+
+### offer
+- Direction: client -> server
+- Payload: \`{ roomId: string, targetSocketId: string, offer: object }\`
+- Result: Reenvía la oferta WebRTC SDP al cliente de destino como un evento \`webrtc-offer\`.
+
+### answer
+- Direction: server -> client
+- Payload: \`{ answer: object, fromSocketId: string }\`
+- Result: Recibe y reenvía la respuesta WebRTC SDP del peer al emisor original.
+
+### ice-candidate
+- Direction: bidirectional
+- Payload: \`{ roomId: string, targetSocketId: string, candidate: object }\`
+- Result: Intercambia candidatos ICE para establecer la conexión P2P WebRTC.
+
+### start-screen-share
+- Direction: client -> server
+- Payload: \`{ roomId: string }\`
+- Result: Notifica a la sala el inicio de la compartición de pantalla.
+
+### stop-screen-share
+- Direction: client -> server
+- Payload: \`{ roomId: string }\`
+- Result: Notifica a la sala el fin de la compartición de pantalla.
 `,
     },
     servers: [
@@ -257,6 +282,8 @@ API docs for the StudyRoom backend and realtime socket events.
             email: { type: 'string', format: 'email', example: 'kevin@ejemplo.com' },
             username: { type: 'string', example: 'kevinburgos' },
             photoURL: { type: 'string', nullable: true, example: 'https://lh3.googleusercontent.com/a/ACg...' },
+            bio: { type: 'string', example: 'Estudiante de Ingeniería de Software' },
+            studyGoal: { type: 'string', example: '25' },
             createdAt: { type: 'string', format: 'date-time', example: '2026-05-29T12:08:29.000Z' },
           },
         },
