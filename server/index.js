@@ -14,6 +14,11 @@ const roomsRoutes = require('./routes/rooms.routes');
 
 dotenv.config();
 
+if (!process.env.FIREBASE_PROJECT_ID && process.env.NODE_ENV !== 'test') {
+  console.error('FIREBASE_PROJECT_ID is required');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const PUBLIC_URL = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || `http://localhost:${PORT}`;
@@ -328,6 +333,24 @@ app.get('/', (req, res) => {
 app.use('/api', apiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomsRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Error no manejado:', err);
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Error interno del servidor';
+  
+  if (process.env.NODE_ENV === 'development') {
+    return res.status(status).json({
+      error: message,
+      details: err.stack || err.message
+    });
+  }
+  
+  return res.status(status).json({
+    error: 'Error interno del servidor'
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

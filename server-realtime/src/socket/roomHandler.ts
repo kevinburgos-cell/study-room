@@ -37,6 +37,14 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
   };
   
   // 1. Join Room Event
+  /**
+   * Maneja el evento join-room de Socket.io.
+   * Verifica el token, une al socket a la room y notifica 
+   * a los demás participantes.
+   * @event join-room
+   * @param {string} roomId - ID de la sala en Firestore
+   * @param {string} token - Firebase ID token del usuario
+   */
   socket.on('join-room', async (payload: JoinRoomPayload) => {
     const { roomId, token } = payload;
     

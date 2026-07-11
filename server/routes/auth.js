@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, db, isMock } = require('../firebase');
+const verifyToken = require('../middlewares/verifyToken');
 
 // In-memory mock store for simulation if credentials are missing
 const mockUsers = [];
@@ -203,6 +204,15 @@ router.post('/check-username', async (req, res) => {
  *           application/json:
  *             example:
  *               error: Error del servidor al registrar usuario.
+ */
+/**
+ * Registra un nuevo usuario con email y contraseña.
+ * Crea el usuario en Firebase Auth y guarda el perfil en Firestore.
+ * @route POST /api/auth/register
+ * @param {string} email - Correo del usuario
+ * @param {string} password - Contraseña (mínimo 6 caracteres)
+ * @param {string} username - Nombre de usuario único
+ * @returns {object} uid, email, username, token
  */
 router.post('/register', async (req, res) => {
   try {
@@ -604,19 +614,10 @@ router.post('/google-onboard', async (req, res) => {
  *             example:
  *               error: Error del servidor al obtener perfil.
  */
-router.get('/me', async (req, res) => {
+router.get('/me', verifyToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No autorizado. Formato Bearer Token requerido.' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    
-    let uid;
+    const uid = req.user.uid;
     if (!isMock) {
-      const decoded = await auth.verifyIdToken(token);
-      uid = decoded.uid;
 
       const userDoc = await db.collection('users').doc(uid).get();
       if (!userDoc.exists) {
@@ -719,20 +720,12 @@ router.get('/me', async (req, res) => {
  *             example:
  *               error: Error del servidor al actualizar perfil.
  */
-router.post('/profile/update', async (req, res) => {
+router.post('/profile/update', verifyToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No autorizado.' });
-    }
-
-    const token = authHeader.split(' ')[1];
     const { name, bio, studyGoal } = req.body;
+    const uid = req.user.uid;
 
-    let uid;
     if (!isMock) {
-      const decoded = await auth.verifyIdToken(token);
-      uid = decoded.uid;
 
       const updateData = {};
       if (name) updateData.name = name.trim();

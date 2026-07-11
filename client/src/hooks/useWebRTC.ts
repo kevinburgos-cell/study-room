@@ -600,6 +600,8 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   /**
    * Pausa o reanuda el audio local sin cerrar la conexión WebRTC.
    * Usa `track.enabled` en vez de `track.stop()` para preservar el stream.
+   * @function toggleAudio
+   * @returns {Promise<void>}
    */
   const toggleAudio = useCallback(async () => {
     let tracks = localStreamRef.current?.getAudioTracks() ?? [];
@@ -642,6 +644,8 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   /**
    * Activa o desactiva el video local sin renegociar WebRTC.
    * Alterna `track.enabled` para que los peers vean avatar sin romper la conexión.
+   * @function toggleVideo
+   * @returns {Promise<void>}
    */
   const toggleVideo = useCallback(async () => {
     let tracks = cameraStreamRef.current?.getVideoTracks() ?? [];
@@ -689,6 +693,8 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   /**
    * Inicia compartir pantalla reemplazando el track de video de cada sender.
    * Usa `replaceTrack()` y no crea una nueva oferta WebRTC.
+   * @function startScreenShare
+   * @returns {Promise<void>}
    */
   const startScreenShare = useCallback(async () => {
     try {
@@ -740,6 +746,8 @@ export function useWebRTC(roomId: string | undefined, onlineUsers: { uid: string
   /**
    * Detiene compartir pantalla y restaura el track original de la cámara.
    * La restauración también usa `replaceTrack()` para evitar renegociación.
+   * @function stopScreenShare
+   * @returns {Promise<void>}
    */
   const stopScreenShare = useCallback(async () => {
     const screenStream = screenStreamRef.current;
