@@ -6,7 +6,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
 // Initialize Firebase SDK side-effect
-require('./firebase');
+const { projectId, isMock } = require('./firebase');
 
 const apiRoutes = require('./routes/api');
 const authRoutes = require('./routes/auth');
@@ -14,7 +14,7 @@ const roomsRoutes = require('./routes/rooms.routes');
 
 dotenv.config();
 
-if (!process.env.FIREBASE_PROJECT_ID && process.env.NODE_ENV !== 'test') {
+if (!projectId && !isMock && process.env.NODE_ENV !== 'test') {
   console.error('FIREBASE_PROJECT_ID is required');
   process.exit(1);
 }

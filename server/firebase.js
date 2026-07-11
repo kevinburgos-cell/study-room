@@ -71,10 +71,12 @@ if (serviceAccount) {
 
 const db = serviceAccount ? admin.firestore() : null;
 const auth = serviceAccount ? admin.auth() : null;
+const projectId = serviceAccount ? (serviceAccount.project_id || serviceAccount.projectId) : process.env.FIREBASE_PROJECT_ID;
 
 module.exports = {
   admin,
   db,
   auth,
-  isMock: !serviceAccount
+  isMock: !serviceAccount,
+  projectId
 };
